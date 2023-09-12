@@ -1,0 +1,85 @@
+@font-face {
+    font-family: 'Minecraft';
+    src: url('assets/font/Minecraft.otf') format('opentype');
+    font-weight: normal;
+    font-style: normal;
+}
+
+.title {
+    font-family: 'Minecraft';
+    font-size: 35px;
+    text-align: center;
+}
+
+.now-playing {
+    font-family: 'Minecraft';
+    font-size: 25px;
+    text-align: center;
+}
+
+.note{
+    font-family: 'Minecraft';
+    font-size: 20px;
+    text-align: center;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    width: 600px;
+    background-color: #222;
+    color: #fff;
+}
+
+.disc {
+    display: inline-block;
+    width: 70px;
+    height: 70px;
+    margin: 5px;
+    border-radius: 50%;
+    text-align: center;
+    line-height: 70px;
+    cursor: pointer;
+    background-size: cover; 
+    background-position: center; 
+}
+
+.disc:hover {
+    background-color: rgba(54, 44, 44, 0.1);
+    position: relative;
+    font-size: 20px;
+}
+
+.disc:hover:after {
+    content: attr(data-disc-id); /* Fetch the data-disc-id attribute */
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: rgba(0,0,0,0.5);
+    padding: 5px 10px;
+    border-radius: 5px;
+    color: #fff;
+    font-family: 'Minecraft';
+    font-weight: bold;
+}
+
+/* Background Images */
+.disc-13 { background-image: url('assets/images/13.webp'); }
+.disc-cat { background-image: url('assets/images/cat.webp'); }
+.disc-blocks { background-image: url('assets/images/blocks.webp'); }
+.disc-chirp { background-image: url('assets/images/chirp.webp'); }
+.disc-far { background-image: url('assets/images/far.webp'); }
+.disc-mall { background-image: url('assets/images/mall.webp'); }
+.disc-mellohi { background-image: url('assets/images/mellohi.webp'); }
+.disc-stal { background-image: url('assets/images/stal.webp'); }
+.disc-strad { background-image: url('assets/images/strad.webp'); }
+.disc-ward { background-image: url('assets/images/ward.webp'); }
+.disc-11 { background-image: url('assets/images/11.webp'); }
+.disc-wait { background-image: url('assets/images/wait.webp'); }
+.disc-otherside { background-image: url('assets/images/otherside.webp'); }
+.disc-5 { background-image: url('assets/images/5.webp'); }
+.disc-pigstep { background-image: url('assets/images/pigstep.webp'); }
+.disc-relic { background-image: url('assets/images/relic.webp'); }
+.default-1hr { background-image: url('assets/images/minecraft.webp'); }
+.disc-stop{ background-image: url('assets/images/stop.png');}
+

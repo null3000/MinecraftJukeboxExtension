@@ -1,0 +1,38 @@
+{
+  "manifest_version": 3,
+  "name": "Music Disc Extension",
+  "version": "1.0",
+  "description": "Get a Minecraft jukebox in your browser!",
+  "permissions": [
+      "activeTab",
+      "tabs",
+      "offscreen"
+  ],
+  "action": {
+      "default_popup": "popup.html",
+      "default_icon": {
+          "16": "assets/icon/jukebox.png",
+          "32": "assets/icon/jukebox.png",
+          "48": "assets/icon/jukebox.png",
+          "64": "assets/icon/jukebox.png",
+          "128": "assets/icon/jukebox.png"
+      }
+  },
+  "icons": {
+      "16": "assets/icon/jukebox.png",
+      "32": "assets/icon/jukebox.png",
+      "48": "assets/icon/jukebox.png",
+      "64": "assets/icon/jukebox.png",
+      "128": "assets/icon/jukebox.png"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  
+  "content_scripts": [
+      {
+          "matches": ["<all_urls>"],
+          "js": ["app.js"]
+      }
+  ]
+}
