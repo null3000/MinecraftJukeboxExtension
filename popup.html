@@ -7,7 +7,17 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div class="title">Select a Music Disc</div>
+    <div class="top-bar">
+        <div class="title">Select a Music Disc</div>
+        <div class="settings-row" title="Adjust popup size">
+            <label for="ui-scale-select" class="settings-label">Size</label>
+            <select id="ui-scale-select" class="settings-select">
+                <option value="small">Small</option>
+                <option value="medium">Medium</option>
+                <option value="large">Large</option>
+            </select>
+        </div>
+    </div>
     <div id="discs">
         <div class="disc disc-13" data-disc-id="13"></div>
         <div class="disc disc-cat" data-disc-id="cat"></div>
@@ -25,11 +35,43 @@
         <div class="disc disc-5" data-disc-id="5"></div>
         <div class="disc disc-pigstep" data-disc-id="Pigstep"></div>
         <div class="disc disc-relic" data-disc-id="Relic"></div>
+        <div class="disc disc-creator" data-disc-id="Creator"></div>
+        <div class="disc disc-creator-music-box" data-disc-id="Creator(MB)"></div>
+        <div class="disc disc-precipice" data-disc-id="Precipice"></div>
+        <div class="disc disc-tears" data-disc-id="Tears"></div>
+        <div class="disc disc-lava-chicken" data-disc-id="Lava Chicken"></div>
         <div class="disc default-1hr" data-disc-id="Default 1hr"></div>
-        <!-- making stop a disc b/c im too lazy to create a new class -->
-        <div class="disc disc-stop" data-disc-id="stop"></div>
+
         <h4 id="now-playing" class = "now-playing" >Now Playing: </h4>
-        
+    </div>
+
+    <p class="queue-tip">Left-click a disc to play now. Right-click or Shift+Click to add it to the queue.</p>
+
+    <div class="player-controls">
+        <button id="skip-prev-btn" class="control-btn">⏮</button>
+        <button id="rewind-btn" class="control-btn">-10s</button>
+        <button id="play-pause-btn" class="control-btn">Play</button>
+        <button id="forward-btn" class="control-btn">+10s</button>
+        <button id="skip-next-btn" class="control-btn">⏭</button>
+    </div>
+
+    <div class="progress-wrapper">
+        <span id="current-time" class="time-label">0:00</span>
+        <input type="range" id="progress-bar" min="0" max="0" value="0" step="0.1" disabled>
+        <span id="duration-time" class="time-label">0:00</span>
+    </div>
+
+    <div class="queue-section">
+        <div class="queue-heading-row">
+            <h4 class="queue-heading">Queue</h4>
+            <button id="clear-queue-btn" class="control-btn clear-queue-btn">Clear Queue</button>
+        </div>
+        <ul id="queue-list" class="queue-list"></ul>
+    </div>
+
+    <div class="footer-links">
+        <a class="footer-btn review-btn" href="https://chromewebstore.google.com/detail/minecraft-jukebox/mbibfcflbmlbcbnejgalgeijlpnjjgjc/reviews" target="_blank" rel="noopener">Leave a Review</a>
+        <a class="footer-btn coffee-btn" href="https://buymeacoffee.com/null3000" target="_blank" rel="noopener">Buy Me a Coffee</a>
     </div>
 
 

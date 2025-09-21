@@ -5,58 +5,147 @@
     font-style: normal;
 }
 
+html, body {
+    height: auto;
+    min-height: 0;
+    overflow: hidden;
+}
+
+body {
+    --scale-factor: 0.85;
+    font-family: Arial, sans-serif;
+    width: clamp(320px, calc(720px * var(--scale-factor)), 800px);
+    margin: 0;
+    background-color: #222;
+    color: #fff;
+}
+
+body.scale-small {
+    --scale-factor: 0.85;
+}
+
+body.scale-medium {
+    --scale-factor: 1;
+}
+
+body.scale-large {
+    --scale-factor: 1.15;
+}
+
+.settings-row {
+    display: flex;
+    align-items: center;
+    gap: calc(6px * var(--scale-factor));
+    margin-left: auto;
+}
+
+.settings-label {
+    font-family: 'Minecraft';
+    font-size: calc(14px * var(--scale-factor));
+}
+
+.settings-select {
+    font-family: 'Minecraft';
+    font-size: calc(14px * var(--scale-factor));
+    padding: calc(4px * var(--scale-factor)) calc(8px * var(--scale-factor));
+    background-color: #333;
+    color: #fff;
+    border: 1px solid #555;
+    border-radius: calc(4px * var(--scale-factor));
+}
+
 .title {
     font-family: 'Minecraft';
-    font-size: 35px;
+    font-size: calc(35px * var(--scale-factor));
     text-align: center;
+}
+
+.top-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: calc(16px * var(--scale-factor));
+    padding: calc(12px * var(--scale-factor)) calc(16px * var(--scale-factor)) 0;
+}
+
+.top-bar .title {
+    margin: 0;
+    text-align: left;
+}
+
+.footer-links {
+    display: flex;
+    justify-content: center;
+    gap: calc(12px * var(--scale-factor));
+    padding: calc(16px * var(--scale-factor));
+}
+
+.footer-btn {
+    font-family: 'Minecraft';
+    font-size: calc(14px * var(--scale-factor));
+    padding: calc(6px * var(--scale-factor)) calc(14px * var(--scale-factor));
+    border-radius: calc(6px * var(--scale-factor));
+    text-decoration: none;
+    color: #fff;
+    transition: background-color 0.2s ease;
+}
+
+.review-btn {
+    background-color: #2a6be9;
+}
+
+.review-btn:hover {
+    background-color: #3b7bfa;
+}
+
+.coffee-btn {
+    background-color: #f9a602;
+    color: #111;
+}
+
+.coffee-btn:hover {
+    background-color: #ffb733;
 }
 
 .now-playing {
     font-family: 'Minecraft';
-    font-size: 25px;
+    font-size: calc(25px * var(--scale-factor));
     text-align: center;
 }
 
 .note{
     font-family: 'Minecraft';
-    font-size: 20px;
+    font-size: calc(20px * var(--scale-factor));
     text-align: center;
-}
-
-body {
-    font-family: Arial, sans-serif;
-    width: 600px;
-    background-color: #222;
-    color: #fff;
 }
 
 .disc {
     display: inline-block;
-    width: 70px;
-    height: 70px;
-    margin: 5px;
+    width: calc(70px * var(--scale-factor));
+    height: calc(70px * var(--scale-factor));
+    margin: calc(5px * var(--scale-factor));
     border-radius: 50%;
     text-align: center;
-    line-height: 70px;
+    line-height: calc(70px * var(--scale-factor));
     cursor: pointer;
-    background-size: cover; 
-    background-position: center; 
+    background-size: cover;
+    background-position: center;
 }
 
 .disc:hover {
     background-color: rgba(54, 44, 44, 0.1);
     position: relative;
-    font-size: 20px;
+    font-size: calc(20px * var(--scale-factor));
 }
 
 .disc:hover:after {
-    content: attr(data-disc-id); /* Fetch the data-disc-id attribute */
+    content: attr(data-disc-id);
     position: absolute;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
     background-color: rgba(0,0,0,0.5);
-    padding: 5px 10px;
+    padding: calc(5px * var(--scale-factor)) calc(10px * var(--scale-factor));
     border-radius: 5px;
     color: #fff;
     font-family: 'Minecraft';
@@ -80,6 +169,155 @@ body {
 .disc-5 { background-image: url('assets/images/5.webp'); }
 .disc-pigstep { background-image: url('assets/images/pigstep.webp'); }
 .disc-relic { background-image: url('assets/images/relic.webp'); }
+.disc-creator { background-image: url('assets/images/creator.webp'); }
+.disc-creator-music-box { background-image: url('assets/images/creator(music-box).webp'); }
+.disc-precipice { background-image: url('assets/images/precipice.webp'); }
+.disc-tears { background-image: url('assets/images/tears.webp'); }
+.disc-lava-chicken { background-image: url('assets/images/lava-chicken.webp'); }
 .default-1hr { background-image: url('assets/images/minecraft.webp'); }
-.disc-stop{ background-image: url('assets/images/stop.png');}
 
+.player-controls {
+    display: flex;
+    justify-content: center;
+    gap: calc(12px * var(--scale-factor));
+    margin: calc(15px * var(--scale-factor)) 0 calc(10px * var(--scale-factor));
+}
+
+.control-btn {
+    font-family: 'Minecraft';
+    font-size: calc(16px * var(--scale-factor));
+    padding: calc(6px * var(--scale-factor)) calc(12px * var(--scale-factor));
+    border: none;
+    border-radius: calc(4px * var(--scale-factor));
+    background-color: #444;
+    color: #fff;
+    cursor: pointer;
+}
+
+.control-btn:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+.queue-tip {
+    font-family: 'Minecraft';
+    font-size: calc(14px * var(--scale-factor));
+    text-align: center;
+    margin: calc(8px * var(--scale-factor)) calc(12px * var(--scale-factor));
+    color: #bbb;
+}
+
+.progress-wrapper {
+    display: flex;
+    align-items: center;
+    gap: calc(10px * var(--scale-factor));
+    padding: 0 calc(16px * var(--scale-factor)) calc(16px * var(--scale-factor));
+}
+
+#progress-bar {
+    flex: 1;
+}
+
+.time-label {
+    font-family: 'Minecraft';
+    font-size: calc(14px * var(--scale-factor));
+}
+
+.queue-section {
+    padding: 0 calc(16px * var(--scale-factor)) calc(20px * var(--scale-factor));
+}
+
+.queue-heading-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: calc(8px * var(--scale-factor));
+}
+
+.queue-heading {
+    font-family: 'Minecraft';
+    font-size: calc(20px * var(--scale-factor));
+}
+
+.queue-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    border: 1px solid #444;
+    border-radius: 6px;
+}
+
+.queue-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: calc(8px * var(--scale-factor)) calc(10px * var(--scale-factor));
+    border-bottom: 1px solid #444;
+    font-family: 'Minecraft';
+}
+
+.queue-item:last-child {
+    border-bottom: none;
+}
+
+.queue-item-title {
+    flex: 1;
+    margin-right: calc(8px * var(--scale-factor));
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.queue-item-controls {
+    display: flex;
+    gap: calc(6px * var(--scale-factor));
+}
+
+.queue-item button {
+    font-family: 'Minecraft';
+    font-size: calc(14px * var(--scale-factor));
+    padding: calc(4px * var(--scale-factor)) calc(8px * var(--scale-factor));
+    border: 2px solid #1e1e1e;
+    border-radius: 0;
+    background-color: #3a3;
+    color: #111;
+    cursor: pointer;
+}
+
+.queue-item button:hover {
+    background-color: #4c4;
+}
+
+.queue-item button.queue-remove {
+    background-color: #a33;
+    color: #fff;
+}
+
+.queue-item button.queue-remove:hover {
+    background-color: #b44;
+}
+
+.queue-item button:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+
+.clear-queue-btn {
+    padding: calc(4px * var(--scale-factor)) calc(12px * var(--scale-factor));
+    font-size: calc(14px * var(--scale-factor));
+    background-color: #a33;
+    color: #fff;
+    border-radius: 0;
+    border: 2px solid #2a1111;
+}
+
+.clear-queue-btn:hover {
+    background-color: #b44;
+}
+
+.empty-queue {
+    text-align: center;
+    padding: calc(12px * var(--scale-factor)) calc(10px * var(--scale-factor));
+    font-family: 'Minecraft';
+    color: #888;
+}

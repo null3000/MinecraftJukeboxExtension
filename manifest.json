@@ -1,12 +1,11 @@
 {
   "manifest_version": 3,
-  "name": "Music Disc Extension",
-  "version": "1.0",
+  "name": "Minecraft Jukebox",
+  "version": "1.1",
   "description": "Get a Minecraft jukebox in your browser!",
   "permissions": [
-      "activeTab",
-      "tabs",
-      "offscreen"
+      "offscreen",
+      "storage"
   ],
   "action": {
       "default_popup": "popup.html",
@@ -27,12 +26,5 @@
   },
   "background": {
     "service_worker": "background.js"
-  },
-  
-  "content_scripts": [
-      {
-          "matches": ["<all_urls>"],
-          "js": ["app.js"]
-      }
-  ]
+  }
 }
