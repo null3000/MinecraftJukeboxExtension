@@ -1,4 +1,5 @@
 const DEFAULT_VOLUME = 1;
+const MAX_VOLUME = 3;
 
 const playbackState = {
     currentTrack: null,
@@ -13,10 +14,18 @@ const playbackState = {
 
 const stateReady = loadStateFromStorage();
 let hasActiveAudioSession = false;
+let volumeLevel = DEFAULT_VOLUME;
+
+function clampVolume(value) {
+    if (!Number.isFinite(value)) {
+        return DEFAULT_VOLUME;
+    }
+    return Math.min(Math.max(value, 0), MAX_VOLUME);
+}
 
 async function loadStateFromStorage() {
     try {
-        const stored = await chrome.storage.local.get('playbackState');
+        const stored = await chrome.storage.local.get(['playbackState', 'volumeLevel']);
         if (stored && stored.playbackState) {
             const { currentTrack = null, queue = [], history = [] } = stored.playbackState;
             playbackState.currentTrack = currentTrack;
@@ -28,6 +37,9 @@ async function loadStateFromStorage() {
                 isPlaying: false
             };
             hasActiveAudioSession = false;
+        }
+        if (stored && typeof stored.volumeLevel === 'number') {
+            volumeLevel = clampVolume(stored.volumeLevel);
         }
     } catch (error) {
         // Ignore storage load issues.
@@ -68,7 +80,8 @@ function getStateSnapshot() {
         currentTrack: playbackState.currentTrack,
         queue: playbackState.queue,
         history: playbackState.history,
-        progress: { ...playbackState.progress }
+        progress: { ...playbackState.progress },
+        volume: volumeLevel
     };
 }
 
@@ -98,6 +111,34 @@ function broadcastState() {
     }
 }
 
+function updateVolumeStorage(level) {
+    return chrome.storage.local.set({ volumeLevel: level }).catch(() => {});
+}
+
+function applyVolumeLevel(level, { persist = true, notify = true } = {}) {
+    const clamped = clampVolume(level);
+    if (clamped === volumeLevel) {
+        if (persist) {
+            updateVolumeStorage(clamped);
+        }
+        return volumeLevel;
+    }
+
+    volumeLevel = clamped;
+
+    if (persist) {
+        updateVolumeStorage(clamped);
+    }
+
+    if (notify) {
+        sendToOffscreen({ setVolume: clamped });
+        broadcastState();
+    }
+
+    return volumeLevel;
+}
+
+
 async function playTrack(track, { pushCurrentToHistory = true } = {}) {
     if (!track) return;
 
@@ -112,7 +153,7 @@ async function playTrack(track, { pushCurrentToHistory = true } = {}) {
         isPlaying: false
     };
 
-    await playSound(track.path, DEFAULT_VOLUME, track.discId);
+    await playSound(track.path, volumeLevel, track.discId);
     hasActiveAudioSession = true;
     await persistState();
     broadcastState();
@@ -313,6 +354,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 break;
             case 'control':
                 await handleControl(message.command, message.value);
+                break;
+            case 'setVolume':
+                applyVolumeLevel(message.volume);
                 break;
             case 'requestState':
                 sendResponse(getStateSnapshot());

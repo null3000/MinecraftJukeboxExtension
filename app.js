@@ -10,9 +10,11 @@ const currentTimeLabel = document.getElementById('current-time');
 const durationLabel = document.getElementById('duration-time');
 const queueList = document.getElementById('queue-list');
 const scaleSelect = document.getElementById('ui-scale-select');
+const volumeSlider = document.getElementById('volume-slider');
 const SCALE_OPTIONS = ['small', 'medium', 'large'];
 const SCALE_CLASSES = SCALE_OPTIONS.map(option => `scale-${option}`);
 const DEFAULT_SCALE = 'small';
+const MAX_VOLUME = 3;
 
 let activeDiscId = null;
 let isPlaying = false;
@@ -23,6 +25,7 @@ let isUserSeeking = false;
 let queue = [];
 let history = [];
 let resizeFrameId = null;
+let currentVolume = 1;
 
 function safeRemoveStorageKey(key) {
     try {
@@ -163,7 +166,7 @@ function applyStatus(status = {}) {
 }
 
 function applyState(state = {}) {
-    const { currentTrack = null, queue: queued = [], history: played = [], progress } = state;
+    const { currentTrack = null, queue: queued = [], history: played = [], progress, volume } = state;
 
     queue = Array.isArray(queued) ? queued : [];
     history = Array.isArray(played) ? played : [];
@@ -193,6 +196,18 @@ function applyState(state = {}) {
     if (progress) {
         applyStatus(progress);
     }
+
+    if (typeof volume === 'number') {
+        const normalized = Math.min(Math.max(volume, 0), MAX_VOLUME);
+        currentVolume = normalized;
+        if (volumeSlider) {
+            const sliderValue = Math.round(normalized * 100);
+            if (Number.parseInt(volumeSlider.value, 10) !== sliderValue) {
+                volumeSlider.value = String(sliderValue);
+            }
+        }
+    }
+
 }
 
 function requestStatus() {
@@ -439,9 +454,15 @@ chrome.runtime.onMessage.addListener(message => {
     }
 });
 
-chrome.storage.local.get(['currentDiscId', 'playbackState', 'uiScale'], data => {
+chrome.storage.local.get(['currentDiscId', 'playbackState', 'uiScale', 'volumeLevel'], data => {
     if (data.uiScale) {
         applyScalePreference(data.uiScale);
+    }
+
+    if (typeof data.volumeLevel === 'number' && volumeSlider) {
+        const normalized = Math.min(Math.max(data.volumeLevel, 0), MAX_VOLUME);
+        currentVolume = normalized;
+        volumeSlider.value = String(Math.round(Math.min(normalized, MAX_VOLUME) * 100));
     }
 
     if (data.playbackState) {
@@ -490,3 +511,18 @@ window.addEventListener('keydown', event => {
             break;
     }
 });
+
+if (volumeSlider) {
+    volumeSlider.addEventListener('input', event => {
+        const value = Number.parseInt(event.target.value, 10);
+        if (!Number.isFinite(value)) {
+            return;
+        }
+        const normalized = Math.min(Math.max(value / 100, 0), MAX_VOLUME);
+        if (Math.abs(normalized - currentVolume) < 0.005) {
+            return;
+        }
+        currentVolume = normalized;
+        chrome.runtime.sendMessage({ type: 'setVolume', volume: normalized });
+    });
+}

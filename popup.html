@@ -9,13 +9,22 @@
 <body>
     <div class="top-bar">
         <div class="title">Select a Music Disc</div>
-        <div class="settings-row" title="Adjust popup size">
-            <label for="ui-scale-select" class="settings-label">Size</label>
-            <select id="ui-scale-select" class="settings-select">
-                <option value="small">Small</option>
-                <option value="medium">Medium</option>
-                <option value="large">Large</option>
-            </select>
+        <div class="top-controls">
+            <div class="settings-row" title="Adjust popup size">
+                <label for="ui-scale-select" class="settings-label">Size</label>
+                <select id="ui-scale-select" class="settings-select">
+                    <option value="small">Small</option>
+                    <option value="medium">Medium</option>
+                    <option value="large">Large</option>
+                </select>
+            </div>
+            <div class="volume-row" title="Adjust volume">
+                <label for="volume-slider" class="volume-label">
+                    <span class="volume-icon" aria-hidden="true"></span>
+                    <span class="sr-only">Volume</span>
+                </label>
+                <input type="range" id="volume-slider" class="volume-slider" min="0" max="300" value="100" aria-label="Volume">
+            </div>
         </div>
     </div>
     <div id="discs">
@@ -42,23 +51,25 @@
         <div class="disc disc-lava-chicken" data-disc-id="Lava Chicken"></div>
         <div class="disc default-1hr" data-disc-id="Default 1hr"></div>
 
-        <h4 id="now-playing" class = "now-playing" >Now Playing: </h4>
+        <div class="disc-footer">
+            <h4 id="now-playing" class="now-playing">Now Playing:</h4>
+            <p class="queue-tip">Left-click to play • Right/Shift-click to queue</p>
+        </div>
     </div>
 
-    <p class="queue-tip">Left-click a disc to play now. Right-click or Shift+Click to add it to the queue.</p>
-
-    <div class="player-controls">
-        <button id="skip-prev-btn" class="control-btn">⏮</button>
-        <button id="rewind-btn" class="control-btn">-10s</button>
-        <button id="play-pause-btn" class="control-btn">Play</button>
-        <button id="forward-btn" class="control-btn">+10s</button>
-        <button id="skip-next-btn" class="control-btn">⏭</button>
-    </div>
-
-    <div class="progress-wrapper">
-        <span id="current-time" class="time-label">0:00</span>
-        <input type="range" id="progress-bar" min="0" max="0" value="0" step="0.1" disabled>
-        <span id="duration-time" class="time-label">0:00</span>
+    <div class="playback-bar">
+        <div class="player-controls">
+            <button id="skip-prev-btn" class="control-btn">⏮</button>
+            <button id="rewind-btn" class="control-btn">-10s</button>
+            <button id="play-pause-btn" class="control-btn">Play</button>
+            <button id="forward-btn" class="control-btn">+10s</button>
+            <button id="skip-next-btn" class="control-btn">⏭</button>
+        </div>
+        <div class="progress-wrapper">
+            <span id="current-time" class="time-label">0:00</span>
+            <input type="range" id="progress-bar" min="0" max="0" value="0" step="0.1" disabled>
+            <span id="duration-time" class="time-label">0:00</span>
+        </div>
     </div>
 
     <div class="queue-section">
@@ -71,7 +82,8 @@
 
     <div class="footer-links">
         <a class="footer-btn review-btn" href="https://chromewebstore.google.com/detail/minecraft-jukebox/mbibfcflbmlbcbnejgalgeijlpnjjgjc/reviews" target="_blank" rel="noopener">Leave a Review</a>
-        <a class="footer-btn coffee-btn" href="https://buymeacoffee.com/null3000" target="_blank" rel="noopener">Buy Me a Coffee</a>
+        <a class="footer-btn vinyl-btn" href="https://amzn.to/3KuJSqe" target="_blank" rel="noopener">Loving the music? Buy the official Minecraft vinyl soundtrack</a>
+        <p class="affiliate-note">As an Amazon Associate I earn from purchases.</p>
     </div>
 
 

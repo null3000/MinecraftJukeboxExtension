@@ -1,5 +1,11 @@
+const MAX_VOLUME = 3;
+
 let currentlyPlayingAudio = null;
 let currentDiscId = null;
+let currentVolume = 1;
+let audioContext = null;
+let gainNode = null;
+let sourceNode = null;
 
 function safeSendMessage(payload) {
     const maybePromise = chrome.runtime.sendMessage(payload);
@@ -58,6 +64,38 @@ function notifyTrackStopped(reason = 'stopped') {
     currentDiscId = null;
 }
 
+function clampVolume(value) {
+    if (!Number.isFinite(value)) {
+        return 1;
+    }
+    return Math.min(Math.max(value, 0), MAX_VOLUME);
+}
+
+function ensureAudioGraph(audio) {
+    if (!audioContext) {
+        audioContext = new AudioContext();
+        gainNode = audioContext.createGain();
+        gainNode.gain.value = currentVolume;
+        gainNode.connect(audioContext.destination);
+    }
+
+    if (sourceNode) {
+        try {
+            sourceNode.disconnect();
+        } catch (error) {
+            // Ignore disconnect errors.
+        }
+        sourceNode = null;
+    }
+
+    try {
+        sourceNode = audioContext.createMediaElementSource(audio);
+        sourceNode.connect(gainNode);
+    } catch (error) {
+        // If the source was already connected, ignore.
+    }
+}
+
 function playAudio({ source, volume = 1, discId }) {
     if (currentlyPlayingAudio) {
         detachAudioHandlers(currentlyPlayingAudio);
@@ -65,12 +103,23 @@ function playAudio({ source, volume = 1, discId }) {
     }
 
     const audio = new Audio(source);
-    audio.volume = volume;
+    currentVolume = clampVolume(volume);
+    audio.loop = false;
+    audio.volume = 1;
     audio.currentTime = 0;
 
     attachAudioHandlers(audio);
     currentlyPlayingAudio = audio;
     currentDiscId = discId || currentDiscId;
+
+    ensureAudioGraph(audio);
+    if (gainNode) {
+        gainNode.gain.value = currentVolume;
+    }
+
+    if (audioContext && audioContext.state === 'suspended') {
+        audioContext.resume().catch(() => {});
+    }
 
     sendProgressUpdate();
 
@@ -81,6 +130,23 @@ function playAudio({ source, volume = 1, discId }) {
             currentlyPlayingAudio = null;
         }
     });
+}
+
+function setVolume(volume) {
+    const audio = currentlyPlayingAudio;
+    const clamped = clampVolume(volume);
+    currentVolume = clamped;
+    if (!audio) {
+        if (gainNode) {
+            gainNode.gain.value = currentVolume;
+        }
+        return;
+    }
+    if (gainNode) {
+        gainNode.gain.value = currentVolume;
+    } else {
+        audio.volume = Math.min(Math.max(currentVolume, 0), 1);
+    }
 }
 
 function pauseAudio() {
@@ -188,6 +254,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
     if (typeof msg.seekTo === 'number') {
         seekTo(msg.seekTo);
+        return;
+    }
+
+    if (typeof msg.setVolume === 'number') {
+        setVolume(msg.setVolume);
         return;
     }
 
