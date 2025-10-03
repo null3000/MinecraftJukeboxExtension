@@ -102,40 +102,17 @@ body.scale-large {
 }
 
 .volume-icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: calc(18px * var(--scale-factor));
-    height: calc(18px * var(--scale-factor));
-    background: radial-gradient(circle at 30% 30%, #fefefe, #ddd);
-    border-radius: 50%;
-    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.3);
-    position: relative;
+    display: inline-block;
+    width: calc(20px * var(--scale-factor));
+    height: calc(20px * var(--scale-factor));
+    background-image: url('assets/images/soundIcon.png');
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
 }
 
-.volume-icon::before,
-.volume-icon::after {
-    content: '';
-    position: absolute;
-    display: block;
-}
-
-.volume-icon::before {
-    width: calc(10px * var(--scale-factor));
-    height: calc(8px * var(--scale-factor));
-    background: #222;
-    clip-path: polygon(0% 20%, 60% 20%, 100% 0%, 100% 100%, 60% 80%, 0% 80%);
-}
-
-.volume-icon::after {
-    width: calc(5px * var(--scale-factor));
-    height: calc(12px * var(--scale-factor));
-    right: calc(-6px * var(--scale-factor));
-    top: 50%;
-    transform: translateY(-50%);
-    border-radius: calc(6px * var(--scale-factor));
-    border: calc(2px * var(--scale-factor)) solid #f9a602;
-    border-left: none;
+.volume-icon.muted {
+    background-image: url('assets/images/nosoundIcon.png');
 }
 .sr-only {
     position: absolute;

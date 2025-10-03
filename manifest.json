@@ -1,11 +1,14 @@
 {
   "manifest_version": 3,
   "name": "Minecraft Jukebox",
-  "version": "1.1",
+  "version": "2025.10.2",
   "description": "Get a Minecraft jukebox in your browser!",
   "permissions": [
       "offscreen",
       "storage"
+  ],
+  "host_permissions": [
+      "https://lupyhlznsiokxpeqftpg.supabase.co/*"
   ],
   "action": {
       "default_popup": "popup.html",

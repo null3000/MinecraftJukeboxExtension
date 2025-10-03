@@ -11,10 +11,12 @@ const durationLabel = document.getElementById('duration-time');
 const queueList = document.getElementById('queue-list');
 const scaleSelect = document.getElementById('ui-scale-select');
 const volumeSlider = document.getElementById('volume-slider');
+const volumeIcon = document.querySelector('.volume-icon');
 const SCALE_OPTIONS = ['small', 'medium', 'large'];
 const SCALE_CLASSES = SCALE_OPTIONS.map(option => `scale-${option}`);
 const DEFAULT_SCALE = 'small';
 const MAX_VOLUME = 3;
+const PING_ENDPOINT = 'https://lupyhlznsiokxpeqftpg.supabase.co/functions/v1/ping';
 
 let activeDiscId = null;
 let isPlaying = false;
@@ -26,6 +28,7 @@ let queue = [];
 let history = [];
 let resizeFrameId = null;
 let currentVolume = 1;
+let lastNonZeroVolume = 1;
 
 function safeRemoveStorageKey(key) {
     try {
@@ -199,13 +202,19 @@ function applyState(state = {}) {
 
     if (typeof volume === 'number') {
         const normalized = Math.min(Math.max(volume, 0), MAX_VOLUME);
+        if (normalized > 0.005) {
+            lastNonZeroVolume = normalized;
+        }
         currentVolume = normalized;
         if (volumeSlider) {
-            const sliderValue = Math.round(normalized * 100);
+            const sliderValue = Math.round(Math.min(normalized, MAX_VOLUME) * 100);
             if (Number.parseInt(volumeSlider.value, 10) !== sliderValue) {
                 volumeSlider.value = String(sliderValue);
             }
         }
+        updateVolumeIcon();
+    } else {
+        updateVolumeIcon();
     }
 
 }
@@ -459,10 +468,16 @@ chrome.storage.local.get(['currentDiscId', 'playbackState', 'uiScale', 'volumeLe
         applyScalePreference(data.uiScale);
     }
 
-    if (typeof data.volumeLevel === 'number' && volumeSlider) {
+    if (typeof data.volumeLevel === 'number') {
         const normalized = Math.min(Math.max(data.volumeLevel, 0), MAX_VOLUME);
+        if (normalized > 0.005) {
+            lastNonZeroVolume = normalized;
+        }
         currentVolume = normalized;
-        volumeSlider.value = String(Math.round(Math.min(normalized, MAX_VOLUME) * 100));
+        if (volumeSlider) {
+            volumeSlider.value = String(Math.round(Math.min(normalized, MAX_VOLUME) * 100));
+        }
+        updateVolumeIcon();
     }
 
     if (data.playbackState) {
@@ -482,7 +497,10 @@ chrome.storage.local.get(['currentDiscId', 'playbackState', 'uiScale', 'volumeLe
     resizePopupToContent();
 });
 
-window.addEventListener('load', resizePopupToContent);
+window.addEventListener('load', () => {
+    pingOnPopupOpen();
+    resizePopupToContent();
+});
 
 window.addEventListener('keydown', event => {
     if (event.defaultPrevented) {
@@ -523,6 +541,53 @@ if (volumeSlider) {
             return;
         }
         currentVolume = normalized;
+        if (normalized > 0.005) {
+            lastNonZeroVolume = normalized;
+        }
         chrome.runtime.sendMessage({ type: 'setVolume', volume: normalized });
+        updateVolumeIcon();
     });
 }
+
+function updateVolumeIcon() {
+    if (!volumeIcon) {
+        return;
+    }
+    if (currentVolume <= 0.005) {
+        volumeIcon.classList.add('muted');
+    } else {
+        volumeIcon.classList.remove('muted');
+    }
+}
+
+function pingOnPopupOpen() {
+    if (!PING_ENDPOINT) {
+        return;
+    }
+    fetch(PING_ENDPOINT, { method: 'GET', cache: 'no-store' }).catch(() => {});
+}
+
+if (volumeIcon && volumeSlider) {
+    volumeIcon.addEventListener('click', () => {
+        if (currentVolume <= 0.005) {
+            const restored = lastNonZeroVolume > 0.005 ? lastNonZeroVolume : 1;
+            const clamped = Math.min(Math.max(restored, 0), MAX_VOLUME);
+            currentVolume = clamped;
+            if (clamped > 0.005) {
+                lastNonZeroVolume = clamped;
+            }
+            volumeSlider.value = String(Math.round(clamped * 100));
+            chrome.runtime.sendMessage({ type: 'setVolume', volume: currentVolume });
+        } else {
+            if (currentVolume > 0.005) {
+                lastNonZeroVolume = currentVolume;
+            }
+            currentVolume = 0;
+            volumeSlider.value = '0';
+            chrome.runtime.sendMessage({ type: 'setVolume', volume: 0 });
+        }
+        updateVolumeIcon();
+    });
+}
+
+updateVolumeIcon();
