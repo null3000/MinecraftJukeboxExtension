@@ -12,6 +12,261 @@ const queueList = document.getElementById('queue-list');
 const scaleSelect = document.getElementById('ui-scale-select');
 const volumeSlider = document.getElementById('volume-slider');
 const volumeIcon = document.querySelector('.volume-icon');
+const selectAssetsBtn = document.getElementById('select-assets-btn');
+const assetsStatusLabel = document.getElementById('assets-status');
+const assetsDirectoryInput = document.getElementById('assets-directory-input');
+
+let assetsStatusClearTimer = null;
+let isDiscLibraryReady = false;
+
+const ASSET_RECORD_PATTERN = /^minecraft\/sounds\/records\/([^/]+)\.ogg$/;
+const STATUS_VARIANTS = ['error', 'success', 'warning'];
+const READY_ASSETS_STATUS = 'Select a disc to play.';
+
+function detectPlatform() {
+    const uaDataPlatform = navigator.userAgentData?.platform;
+    const platform = (uaDataPlatform || navigator.platform || '').toLowerCase();
+    if (platform.includes('mac')) return 'mac';
+    if (platform.includes('win')) return 'windows';
+    if (platform.includes('linux')) return 'linux';
+    return 'other';
+}
+
+const PLATFORM_KEY = detectPlatform();
+
+const DISC_ID_ALIASES = new Map([
+    ['13', '13'],
+    ['11', '11'],
+    ['5', '5'],
+    ['cat', 'cat'],
+    ['blocks', 'blocks'],
+    ['chirp', 'chirp'],
+    ['far', 'far'],
+    ['mall', 'mall'],
+    ['mellohi', 'mellohi'],
+    ['stal', 'stal'],
+    ['strad', 'strad'],
+    ['ward', 'ward'],
+    ['wait', 'wait'],
+    ['otherside', 'otherside'],
+    ['pigstep', 'pigstep'],
+    ['Pigstep', 'pigstep'],
+    ['music_disc.pigstep', 'pigstep'],
+    ['relic', 'relic'],
+    ['Relic', 'relic'],
+    ['music_disc.relic', 'relic'],
+    ['creator', 'creator'],
+    ['Creator', 'creator'],
+    ['music_disc.creator', 'creator'],
+    ['Creator(MB)', 'creator_music_box'],
+    ['Creator (MB)', 'creator_music_box'],
+    ['Creator Music Box', 'creator_music_box'],
+    ['Creator music box', 'creator_music_box'],
+    ['music_disc.creator_music_box', 'creator_music_box'],
+    ['precipice', 'precipice'],
+    ['Precipice', 'precipice'],
+    ['music_disc.precipice', 'precipice'],
+    ['tears', 'tears'],
+    ['Tears', 'tears'],
+    ['music_disc.tears', 'tears'],
+    ['lava chicken', 'lava_chicken'],
+    ['Lava Chicken', 'lava_chicken'],
+    ['lava_chicken', 'lava_chicken'],
+    ['Default 1hr', 'default_1hr'],
+    ['default 1hr', 'default_1hr'],
+    ['default_1hr', 'default_1hr'],
+    ['music_disc.13', '13'],
+    ['music_disc.11', '11'],
+    ['music_disc.5', '5'],
+    ['music_disc.cat', 'cat'],
+    ['music_disc.blocks', 'blocks'],
+    ['music_disc.chirp', 'chirp'],
+    ['music_disc.far', 'far'],
+    ['music_disc.mall', 'mall'],
+    ['music_disc.mellohi', 'mellohi'],
+    ['music_disc.stal', 'stal'],
+    ['music_disc.strad', 'strad'],
+    ['music_disc.ward', 'ward'],
+    ['music_disc.wait', 'wait'],
+    ['music_disc.otherside', 'otherside']
+]);
+function getAssetsFolderHint() {
+    switch (PLATFORM_KEY) {
+        case 'windows':
+            return '%AppData%\\.minecraft\\assets';
+        case 'mac':
+            return '~/Library/Application Support/minecraft/assets';
+        case 'linux':
+            return '~/.minecraft/assets';
+        default:
+            return '.minecraft/assets';
+    }
+}
+
+function getObjectsFolderHint() {
+    switch (PLATFORM_KEY) {
+        case 'windows':
+            return '%AppData%\\.minecraft\\assets\\objects';
+        case 'mac':
+            return '~/Library/Application Support/minecraft/assets/objects';
+        case 'linux':
+            return '~/.minecraft/assets/objects';
+        default:
+            return '.minecraft/assets/objects';
+    }
+}
+
+function getIndexesFolderHint() {
+    switch (PLATFORM_KEY) {
+        case 'windows':
+            return '%AppData%\\.minecraft\\assets\\indexes';
+        case 'mac':
+            return '~/Library/Application Support/minecraft/assets/indexes';
+        case 'linux':
+            return '~/.minecraft/assets/indexes';
+        default:
+            return '.minecraft/assets/indexes';
+    }
+}
+
+function getHiddenFolderTip() {
+    switch (PLATFORM_KEY) {
+        case 'windows':
+            return 'Enable "Show hidden items" in File Explorer if the folder is hidden.';
+        case 'mac':
+            return 'Press Command+Shift+. to reveal hidden folders such as Library.';
+        case 'linux':
+            return 'Enable viewing hidden files (Ctrl+H) if needed.';
+        default:
+            return null;
+    }
+}
+
+function withHint(baseMessage, hint) {
+    if (!hint) {
+        return baseMessage;
+    }
+    const trimmed = baseMessage.trimEnd();
+    const endsWithPeriod = trimmed.endsWith('.');
+    if (endsWithPeriod) {
+        return `${trimmed.slice(0, -1)} (${hint}).`;
+    }
+    return `${baseMessage} (${hint})`;
+}
+
+function getPlatformDisplayName() {
+    switch (PLATFORM_KEY) {
+        case 'windows':
+            return 'Windows';
+        case 'mac':
+            return 'macOS';
+        case 'linux':
+            return 'Linux';
+        default:
+            return 'Your system';
+    }
+}
+
+function normalizeRelativePath(path) {
+    if (!path) {
+        return '';
+    }
+    const cleaned = String(path).replace(/^[.\\/]+/, '').replace(/\\/g, '/');
+    const segments = cleaned.split('/').filter(segment => segment.length > 0);
+    if (!segments.length) {
+        return '';
+    }
+
+    const lowerSegments = segments.map(segment => segment.toLowerCase());
+    const targetIndex = lowerSegments.findIndex(segment => segment === 'indexes' || segment === 'objects');
+    if (targetIndex > 0) {
+        return segments.slice(targetIndex).join('/');
+    }
+    return segments.join('/');
+}
+
+function waitForDirectoryUploadSelection(input) {
+    return new Promise((resolve, reject) => {
+        if (!input) {
+            reject(new Error('Folder uploads are not supported in this browser.'));
+            return;
+        }
+
+        const handleChange = () => {
+            input.removeEventListener('change', handleChange);
+            input.removeEventListener('cancel', handleCancel);
+            const files = input.files ? Array.from(input.files) : [];
+            input.value = '';
+            resolve(files);
+        };
+
+        const handleCancel = () => {
+            input.removeEventListener('cancel', handleCancel);
+            input.removeEventListener('change', handleChange);
+            input.value = '';
+            reject(new DOMException('Selection cancelled.', 'AbortError'));
+        };
+
+        input.addEventListener('change', handleChange, { once: true });
+        input.addEventListener('cancel', handleCancel, { once: true });
+        try {
+            input.click();
+        } catch (error) {
+            input.removeEventListener('change', handleChange);
+            input.removeEventListener('cancel', handleCancel);
+            reject(error);
+        }
+    });
+}
+
+function pickLatestIndexFile(files = []) {
+    let latest = null;
+    for (const file of files) {
+        if (!(file instanceof File)) {
+            continue;
+        }
+        const path = normalizeRelativePath(file.webkitRelativePath || file.name);
+        if (!path.startsWith('indexes/') || !path.endsWith('.json')) {
+            continue;
+        }
+        if (!latest || file.lastModified > latest.file.lastModified || (file.lastModified === latest.file.lastModified && path > latest.path)) {
+            latest = { file, path };
+        }
+    }
+    return latest;
+}
+
+function collectObjectFiles(files = []) {
+    const objectFiles = new Map();
+    for (const file of files) {
+        if (!(file instanceof File)) {
+            continue;
+        }
+        const path = normalizeRelativePath(file.webkitRelativePath || file.name);
+        if (!path.startsWith('objects/')) {
+            continue;
+        }
+        objectFiles.set(path, file);
+    }
+    return objectFiles;
+}
+
+function buildDefaultAssetsStatus() {
+    const hint = getAssetsFolderHint();
+    const tip = getHiddenFolderTip();
+    const base = withHint('Upload your Minecraft assets to start listening.', hint);
+    if (tip) {
+        return `${base} ${tip}`;
+    }
+    return base;
+}
+
+const DEFAULT_ASSETS_STATUS = buildDefaultAssetsStatus();
+
+let minecraftAssetsHandles = null;
+let discHashIndex = new Map();
+let discObjectUrlRegistry = new Map();
+let isLoadingAssets = false;
 const SCALE_OPTIONS = ['small', 'medium', 'large'];
 const SCALE_CLASSES = SCALE_OPTIONS.map(option => `scale-${option}`);
 const DEFAULT_SCALE = 'small';
@@ -29,6 +284,7 @@ let history = [];
 let resizeFrameId = null;
 let currentVolume = 1;
 let lastNonZeroVolume = 1;
+const pendingDiscActions = [];
 
 function safeRemoveStorageKey(key) {
     try {
@@ -38,6 +294,616 @@ function safeRemoveStorageKey(key) {
         }
     } catch (error) {
         /* ignore failures when storage isn't available */
+    }
+}
+
+function setAssetsStatus(message = DEFAULT_ASSETS_STATUS, variant = null, { autoClear = false, clearDelay = 4000 } = {}) {
+    if (!assetsStatusLabel) {
+        return;
+    }
+
+    assetsStatusLabel.textContent = message;
+    assetsStatusLabel.classList.remove(...STATUS_VARIANTS);
+
+    if (variant && STATUS_VARIANTS.includes(variant)) {
+        assetsStatusLabel.classList.add(variant);
+    }
+
+    if (assetsStatusClearTimer) {
+        clearTimeout(assetsStatusClearTimer);
+        assetsStatusClearTimer = null;
+    }
+
+    if (autoClear) {
+        assetsStatusClearTimer = setTimeout(() => {
+            assetsStatusClearTimer = null;
+            if (isDiscLibraryReady) {
+                assetsStatusLabel.textContent = READY_ASSETS_STATUS;
+                assetsStatusLabel.classList.remove(...STATUS_VARIANTS);
+            } else {
+                setAssetsStatus(DEFAULT_ASSETS_STATUS);
+            }
+        }, Math.max(1000, clearDelay));
+    }
+}
+
+function showDiscLibraryNotReadyStatus() {}
+
+function enqueueDiscAction(action) {
+    if (!action || !action.discId) {
+        return;
+    }
+
+    const { discId, type } = action;
+    const existingIndex = pendingDiscActions.findIndex(item => item.discId === discId && item.type === type);
+    if (existingIndex !== -1) {
+        pendingDiscActions.splice(existingIndex, 1);
+    }
+
+    pendingDiscActions.push(action);
+}
+
+function flushPendingDiscActions() {
+    if (!isDiscLibraryReady || pendingDiscActions.length === 0) {
+        return;
+    }
+
+    const actions = pendingDiscActions.splice(0, pendingDiscActions.length);
+    for (const action of actions) {
+        const { discId, type, queueOnly = false } = action;
+        if (!discId) {
+            continue;
+        }
+
+        if (type === 'queue') {
+            queueDisc(discId, { allowRetry: false });
+        } else if (type === 'play') {
+            handleDiscSelection(discId, { queueOnly, allowRetry: false });
+        }
+    }
+}
+
+function exposeDiscObjectUrls() {
+    if (typeof window === 'undefined') {
+        return;
+    }
+    const plain = Object.fromEntries(discObjectUrlRegistry.entries());
+    Object.defineProperty(window, 'minecraftDiscObjectUrls', {
+        value: Object.freeze(plain),
+        writable: false,
+        configurable: true
+    });
+}
+
+function releaseDiscObjectUrls() {
+    const uniqueUrls = new Set(discObjectUrlRegistry.values());
+    for (const url of uniqueUrls) {
+        try {
+            URL.revokeObjectURL(url);
+        } catch (error) {
+            /* ignore revocation issues */
+        }
+    }
+    discObjectUrlRegistry.clear();
+    exposeDiscObjectUrls();
+}
+
+function resetDiscLibraryState() {
+    releaseDiscObjectUrls();
+    discHashIndex = new Map();
+    minecraftAssetsHandles = null;
+    markDiscLibraryReady(false);
+    setAssetsStatus(DEFAULT_ASSETS_STATUS);
+}
+
+function isSystemFolderError(error) {
+    if (!error) {
+        return false;
+    }
+    if (error?.name === 'SecurityError') {
+        return true;
+    }
+    const message = String(error?.message || '').toLowerCase();
+    if (!message) {
+        return false;
+    }
+    return message.includes('system file') || message.includes('system files');
+}
+
+function toAssetKey(discId) {
+    if (discId == null) {
+        return null;
+    }
+
+    const raw = String(discId).trim();
+    if (!raw) {
+        return null;
+    }
+
+    if (DISC_ID_ALIASES.has(raw)) {
+        return DISC_ID_ALIASES.get(raw);
+    }
+
+    const lower = raw.toLowerCase();
+    if (DISC_ID_ALIASES.has(lower)) {
+        return DISC_ID_ALIASES.get(lower);
+    }
+
+    if (lower.startsWith('music_disc.')) {
+        const shortened = lower.slice('music_disc.'.length);
+        if (DISC_ID_ALIASES.has(shortened)) {
+            return DISC_ID_ALIASES.get(shortened);
+        }
+        return shortened;
+    }
+
+    const sanitized = lower.replace(/[^a-z0-9]/g, '');
+    for (const [key, value] of DISC_ID_ALIASES.entries()) {
+        const normalizedKey = String(key).toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (sanitized && sanitized === normalizedKey) {
+            return value;
+        }
+    }
+
+    return sanitized || lower;
+}
+
+function hasDiscLibrary() {
+    return discHashIndex.size > 0;
+}
+
+async function ensureReadPermission(handle) {
+    if (!handle?.queryPermission) {
+        return true;
+    }
+
+    try {
+        const current = await handle.queryPermission({ mode: 'read' });
+        if (current === 'granted') {
+            return true;
+        }
+        if (!handle.requestPermission) {
+            return false;
+        }
+        const requested = await handle.requestPermission({ mode: 'read' }).catch(() => current);
+        return requested === 'granted';
+    } catch (error) {
+        return false;
+    }
+}
+
+async function findLatestIndexFile(indexesHandle) {
+    let latest = null;
+
+    for await (const entry of indexesHandle.values()) {
+        if (entry?.kind !== 'file') {
+            continue;
+        }
+        if (!entry.name.endsWith('.json')) {
+            continue;
+        }
+        try {
+            const file = await entry.getFile();
+            if (!file) {
+                continue;
+            }
+            if (!latest || file.lastModified > latest.file.lastModified || (file.lastModified === latest.file.lastModified && entry.name > latest.handle.name)) {
+                latest = { handle: entry, file };
+            }
+        } catch (error) {
+            /* ignore unreadable entries */
+        }
+    }
+
+    return latest;
+}
+
+async function getHashedFile(objectsHandle, hash) {
+    const prefix = hash.slice(0, 2);
+    let bucketHandle;
+    try {
+        bucketHandle = await objectsHandle.getDirectoryHandle(prefix);
+    } catch (error) {
+        throw new Error(`Missing objects shard for hash prefix "${prefix}".`);
+    }
+
+    try {
+        const fileHandle = await bucketHandle.getFileHandle(hash);
+        return await fileHandle.getFile();
+    } catch (error) {
+        throw new Error(`Missing hashed object ${hash}.`);
+    }
+}
+
+async function buildDiscLibrary(rootHandle) {
+    let indexesHandle;
+    let objectsHandle;
+
+    try {
+        indexesHandle = await rootHandle.getDirectoryHandle('indexes');
+    } catch (error) {
+        throw new Error('Selected folder is missing the required /indexes directory.');
+    }
+
+    try {
+        objectsHandle = await rootHandle.getDirectoryHandle('objects');
+    } catch (error) {
+        throw new Error('Selected folder is missing the required /objects directory.');
+    }
+
+    const hasRootPermission = await ensureReadPermission(rootHandle);
+    const hasIndexPermission = await ensureReadPermission(indexesHandle);
+    const hasObjectsPermission = await ensureReadPermission(objectsHandle);
+
+    if (!hasRootPermission || !hasIndexPermission || !hasObjectsPermission) {
+        throw new Error('Read access to the selected folder was not granted.');
+    }
+
+    const latestIndex = await findLatestIndexFile(indexesHandle);
+    if (!latestIndex) {
+        throw new Error('No index JSON files were found inside the /indexes directory.');
+    }
+
+    let parsed;
+    try {
+        parsed = JSON.parse(await latestIndex.file.text());
+    } catch (error) {
+        throw new Error('Failed to parse the latest assets index JSON.');
+    }
+
+    const objects = parsed?.objects;
+    if (!objects || typeof objects !== 'object') {
+        throw new Error('The latest assets index did not contain an objects map.');
+    }
+
+    const discs = [];
+    for (const [assetPath, meta] of Object.entries(objects)) {
+        const match = ASSET_RECORD_PATTERN.exec(assetPath);
+        if (!match) {
+            continue;
+        }
+
+        const discKey = match[1];
+        const hash = meta?.hash;
+        if (typeof hash !== 'string' || hash.length < 6) {
+            continue;
+        }
+
+        discs.push({ assetKey: discKey, hash });
+    }
+
+    if (!discs.length) {
+        throw new Error('No music discs were found in the selected assets index.');
+    }
+
+    return {
+        discs,
+        indexesHandle,
+        objectsHandle,
+        latestIndexName: latestIndex.handle?.name ?? 'latest'
+    };
+}
+
+function extractDiscEntriesFromIndex(indexData) {
+    const objects = indexData?.objects;
+    if (!objects || typeof objects !== 'object') {
+        throw new Error('The selected assets index did not contain an objects map.');
+    }
+
+    const discs = [];
+    for (const [assetPath, meta] of Object.entries(objects)) {
+        const match = ASSET_RECORD_PATTERN.exec(assetPath);
+        if (!match) {
+            continue;
+        }
+
+        const discKey = match[1];
+        const hash = meta?.hash;
+        if (typeof hash !== 'string' || hash.length < 6) {
+            continue;
+        }
+
+        discs.push({ assetKey: discKey, hash });
+    }
+
+    if (!discs.length) {
+        throw new Error('No music discs were found in the selected assets index.');
+    }
+
+    return discs;
+}
+
+function sendAssetsSelectionToBackground({ rootHandle, objectsHandle, discIndex, latestIndexName }) {
+    if (!chrome?.runtime?.sendMessage) {
+        return;
+    }
+
+    const payload = {
+        type: 'minecraftAssetsSelected',
+        assets: {
+            rootDirectory: rootHandle,
+            objectsDirectory: objectsHandle,
+            discIndex: Array.from(discIndex.entries()),
+            latestIndexName
+        }
+    };
+
+    const maybePromise = chrome.runtime.sendMessage(payload);
+    if (maybePromise && typeof maybePromise.catch === 'function') {
+        maybePromise.catch(() => {});
+    }
+}
+
+function runtimeSendMessage(payload) {
+    return new Promise(resolve => {
+        if (!chrome?.runtime?.sendMessage) {
+            resolve({ ok: false, response: null });
+            return;
+        }
+        try {
+            chrome.runtime.sendMessage(payload, response => {
+                if (chrome.runtime.lastError) {
+                    console.warn('Failed to send message to background:', chrome.runtime.lastError.message);
+                    resolve({ ok: false, response: null });
+                    return;
+                }
+                resolve({ ok: true, response });
+            });
+        } catch (error) {
+            console.warn('Failed to send message to background:', error);
+            resolve({ ok: false, response: null });
+        }
+    });
+}
+
+async function sendBlobFile(key, file) {
+    const keyString = String(key);
+    const mimeType = file?.type || 'audio/ogg';
+
+    if (!file || typeof file.size !== 'number') {
+        return false;
+    }
+
+    // Convert Blob to base64 for message passing
+    let base64Data;
+    try {
+        const arrayBuffer = await file.arrayBuffer();
+        const uint8Array = new Uint8Array(arrayBuffer);
+        const binaryString = Array.from(uint8Array, byte => String.fromCharCode(byte)).join('');
+        base64Data = btoa(binaryString);
+    } catch (error) {
+        console.error('[MinecraftJukebox] Failed to convert file to base64:', error);
+        return false;
+    }
+
+    const { ok } = await runtimeSendMessage({
+        type: 'minecraftAssetBlob',
+        key: keyString,
+        base64Data: base64Data,
+        mimeType
+    });
+    return ok;
+}
+
+async function sendUploadedAssetsToBackground({ discIndex, latestIndexName, blobEntries }) {
+    const indexMessage = await runtimeSendMessage({
+        type: 'minecraftAssetsUploadedIndex',
+        assets: {
+            discIndex: Array.from(discIndex.entries()),
+            latestIndexName
+        }
+    });
+
+    if (!indexMessage.ok) {
+        console.error('[MinecraftJukebox] Failed to initialize cache');
+        setAssetsStatus('Failed to cache discs. Please try again.', 'error');
+        return false;
+    }
+
+    const uploadedKeys = new Set();
+
+    for (const [key, file] of blobEntries) {
+        const keyString = String(key);
+        console.log(`[MinecraftJukebox] Sending blob for key: ${keyString}, size: ${file.size} bytes, type: ${file.type}`);
+        const success = await sendBlobFile(keyString, file);
+        if (!success) {
+            console.error('[MinecraftJukebox] Failed to cache blob for key:', keyString);
+            setAssetsStatus('Failed to cache discs. Please try again.', 'error');
+            await runtimeSendMessage({
+                type: 'minecraftAssetsUploadComplete',
+                keys: Array.from(uploadedKeys)
+            });
+            return false;
+        }
+        console.log(`[MinecraftJukebox] Successfully sent blob for key: ${keyString}`);
+        uploadedKeys.add(keyString);
+    }
+
+    await runtimeSendMessage({
+        type: 'minecraftAssetsUploadComplete',
+        keys: Array.from(uploadedKeys)
+    });
+
+    console.log(`[MinecraftJukebox] Successfully cached ${uploadedKeys.size} audio files`);
+    return true;
+}
+
+async function buildDiscLibraryFromFiles({ discs, objectFileMap, latestIndexName }, { persistToBackground = true } = {}) {
+    const newHashIndex = new Map();
+    const newObjectUrls = new Map();
+    const blobEntryMap = new Map();
+    const resolvedDiscKeys = new Set();
+    const failures = [];
+
+    for (const disc of discs) {
+        const { assetKey, hash } = disc;
+        if (!assetKey || typeof hash !== 'string') {
+            continue;
+        }
+        const shard = hash.slice(0, 2);
+        const relativePath = `objects/${shard}/${hash}`;
+        const file = objectFileMap.get(relativePath);
+        if (!file) {
+            failures.push({ disc, reason: 'missingFile' });
+            continue;
+        }
+
+        try {
+            const objectUrl = URL.createObjectURL(file);
+            newHashIndex.set(assetKey, hash);
+            newObjectUrls.set(assetKey, objectUrl);
+            blobEntryMap.set(assetKey, file);
+            resolvedDiscKeys.add(assetKey);
+        } catch (error) {
+            failures.push({ disc, reason: 'urlCreation', error });
+        }
+    }
+
+    if (!newObjectUrls.size) {
+        throw new Error('Unable to resolve any music discs from the selected assets.');
+    }
+
+    releaseDiscObjectUrls();
+    discHashIndex = newHashIndex;
+    discObjectUrlRegistry = newObjectUrls;
+    minecraftAssetsHandles = null;
+    exposeDiscObjectUrls();
+    markDiscLibraryReady(true);
+
+    const loadedCount = resolvedDiscKeys.size;
+    const blobEntries = Array.from(blobEntryMap.entries());
+
+    let persisted = !persistToBackground;
+
+    if (persistToBackground) {
+        persisted = await sendUploadedAssetsToBackground({
+            discIndex: newHashIndex,
+            latestIndexName,
+            blobEntries
+        });
+    }
+
+    return {
+        loadedCount,
+        failures,
+        discIndex: newHashIndex,
+        blobEntries,
+        latestIndexName,
+        persisted
+    };
+}
+
+async function buildRuntimeDiscLibrary({
+    rootHandle = null,
+    objectsHandle,
+    discs,
+    latestIndexName
+}) {
+    if (!objectsHandle) {
+        throw new Error('Missing objects directory handle.');
+    }
+
+    const hasObjectsPermission = await ensureReadPermission(objectsHandle);
+    if (!hasObjectsPermission) {
+        throw new Error('Read access to the objects directory was not granted.');
+    }
+
+    const newHashIndex = new Map();
+    const newObjectUrls = new Map();
+    const resolvedDiscKeys = new Set();
+    const failures = [];
+
+    for (const disc of discs) {
+        try {
+            const file = await getHashedFile(objectsHandle, disc.hash);
+            const objectUrl = URL.createObjectURL(file);
+            newHashIndex.set(disc.assetKey, disc.hash);
+            newObjectUrls.set(disc.assetKey, objectUrl);
+            resolvedDiscKeys.add(disc.assetKey);
+        } catch (error) {
+            failures.push({ disc, error });
+        }
+    }
+
+    if (!newObjectUrls.size) {
+        for (const url of newObjectUrls.values()) {
+            try {
+                URL.revokeObjectURL(url);
+            } catch (revocationError) {
+                /* ignore */
+            }
+        }
+        throw new Error('Unable to resolve any music discs from the selected assets.');
+    }
+
+    releaseDiscObjectUrls();
+    discHashIndex = newHashIndex;
+    discObjectUrlRegistry = newObjectUrls;
+    minecraftAssetsHandles = {
+        root: rootHandle,
+        objects: objectsHandle
+    };
+    exposeDiscObjectUrls();
+    markDiscLibraryReady(true);
+
+    sendAssetsSelectionToBackground({
+        rootHandle,
+        objectsHandle,
+        discIndex: newHashIndex,
+        latestIndexName
+    });
+
+    const loadedCount = resolvedDiscKeys.size;
+
+    return {
+        loadedCount,
+        failures
+    };
+}
+
+function resolveDiscEntry(discId) {
+    const desiredKey = toAssetKey(discId);
+    if (!desiredKey) {
+        return null;
+    }
+
+    if (discObjectUrlRegistry.has(desiredKey)) {
+        return {
+            assetKey: desiredKey,
+            objectUrl: discObjectUrlRegistry.get(desiredKey),
+            hash: discHashIndex.get(desiredKey) || null
+        };
+    }
+
+    for (const key of discHashIndex.keys()) {
+        if (toAssetKey(key) === desiredKey) {
+            return {
+                assetKey: key,
+                objectUrl: discObjectUrlRegistry.get(key) || null,
+                hash: discHashIndex.get(key) || null
+            };
+        }
+    }
+
+    return null;
+}
+
+if (assetsStatusLabel) {
+    setAssetsStatus(assetsStatusLabel.textContent?.trim() || DEFAULT_ASSETS_STATUS);
+}
+
+exposeDiscObjectUrls();
+
+function markDiscLibraryReady(ready) {
+    isDiscLibraryReady = Boolean(ready);
+    if (typeof window !== 'undefined') {
+        window.isDiscLibraryReady = isDiscLibraryReady;
+    }
+    if (isDiscLibraryReady && (!assetsStatusLabel || assetsStatusLabel.textContent === DEFAULT_ASSETS_STATUS)) {
+        setAssetsStatus(READY_ASSETS_STATUS);
+    }
+    if (isDiscLibraryReady) {
+        flushPendingDiscActions();
     }
 }
 
@@ -96,7 +962,8 @@ if (scaleSelect) {
 applyScalePreference(DEFAULT_SCALE);
 
 function getAudioPath(discId) {
-    return `./assets/audio/${discId}.mp3`;
+    const entry = resolveDiscEntry(discId);
+    return entry?.objectUrl ?? null;
 }
 
 function formatTime(seconds) {
@@ -264,12 +1131,30 @@ function skipPrevious() {
     chrome.runtime.sendMessage({ type: 'skipPrevious' });
 }
 
-function queueDisc(discId) {
+function queueDisc(discId, { allowRetry = true } = {}) {
     if (!discId) return;
+    if (!isDiscLibraryReady) {
+        if (allowRetry) {
+            enqueueDiscAction({ type: 'queue', discId });
+            showDiscLibraryNotReadyStatus();
+        }
+        return;
+    }
+    const entry = resolveDiscEntry(discId);
+    if (!entry || (!entry.objectUrl && discHashIndex.size === 0)) {
+        if (discHashIndex.size === 0) {
+            setAssetsStatus(withHint('Choose your Minecraft assets folder before adding discs.', getAssetsFolderHint()), 'warning');
+        } else {
+            setAssetsStatus(`No local audio found for "${discId}".`, 'error');
+        }
+        return;
+    }
+
     chrome.runtime.sendMessage({
         type: 'queueDisc',
         discId,
-        path: getAudioPath(discId)
+        assetKey: entry.assetKey,
+        objectUrl: entry.objectUrl || undefined
     });
 }
 
@@ -281,16 +1166,42 @@ function reorderQueue(fromIndex, toIndex) {
     chrome.runtime.sendMessage({ type: 'reorderQueue', fromIndex, toIndex });
 }
 
-function handleDiscSelection(discId, { queueOnly = false } = {}) {
+function handleDiscSelection(discId, { queueOnly = false, allowRetry = true } = {}) {
+    console.log(`[MinecraftJukebox] Disc selected: ${discId}, queueOnly: ${queueOnly}`);
+    console.log(`[MinecraftJukebox] isDiscLibraryReady: ${isDiscLibraryReady}`);
+    console.log(`[MinecraftJukebox] discHashIndex.size: ${discHashIndex.size}`);
+    console.log(`[MinecraftJukebox] discObjectUrlRegistry.size: ${discObjectUrlRegistry.size}`);
+    
+    if (!isDiscLibraryReady) {
+        if (allowRetry) {
+            enqueueDiscAction({ type: queueOnly ? 'queue' : 'play', discId, queueOnly });
+            showDiscLibraryNotReadyStatus();
+        }
+        return;
+    }
     if (queueOnly) {
-        queueDisc(discId);
+        queueDisc(discId, { allowRetry: false });
         return;
     }
 
+    const entry = resolveDiscEntry(discId);
+    console.log(`[MinecraftJukebox] Resolved entry for ${discId}:`, entry);
+    
+    if (!entry || (!entry.objectUrl && discHashIndex.size === 0)) {
+        if (discHashIndex.size === 0) {
+            setAssetsStatus(withHint('Choose your Minecraft assets folder to play discs.', getAssetsFolderHint()), 'warning');
+        } else {
+            setAssetsStatus(`No local audio found for "${discId}".`, 'error');
+        }
+        return;
+    }
+
+    console.log(`[MinecraftJukebox] Sending playDisc message for ${discId}`);
     chrome.runtime.sendMessage({
         type: 'playDisc',
         discId,
-        path: getAudioPath(discId)
+        assetKey: entry.assetKey,
+        objectUrl: entry.objectUrl || undefined
     });
 }
 
@@ -405,6 +1316,518 @@ document.querySelectorAll('.disc').forEach(disc => {
     });
 });
 
+async function handleAssetsSelection() {
+    if (isLoadingAssets) {
+        return;
+    }
+
+    if (PLATFORM_KEY === 'mac') {
+        await handleFileUploadAssetsSelection({ reason: 'platformLimited' });
+        return;
+    }
+
+    if (typeof window.showDirectoryPicker !== 'function') {
+        await handleFileUploadAssetsSelection();
+        return;
+    }
+
+    const hadExistingLibrary = hasDiscLibrary();
+
+    isLoadingAssets = true;
+    if (selectAssetsBtn) {
+        selectAssetsBtn.disabled = true;
+    }
+
+    markDiscLibraryReady(false);
+
+    let directoryHandle = null;
+    let library = null;
+
+    try {
+        const waitingTip = getHiddenFolderTip();
+        const waitingMessage = withHint('Waiting for you to pick your Minecraft assets…', getAssetsFolderHint());
+        setAssetsStatus(waitingTip ? `${waitingMessage} ${waitingTip}` : waitingMessage, 'warning');
+        directoryHandle = await window.showDirectoryPicker({ id: 'minecraft-assets-root', mode: 'read' });
+        if (!directoryHandle) {
+            setAssetsStatus('Selection cancelled.', 'warning');
+            return;
+        }
+
+        library = await buildDiscLibrary(directoryHandle);
+
+        const { loadedCount, failures } = await buildRuntimeDiscLibrary({
+            rootHandle: directoryHandle,
+            objectsHandle: library.objectsHandle,
+            discs: library.discs,
+            latestIndexName: library.latestIndexName
+        });
+
+        if (failures.length > 0) {
+            const message = loadedCount > 0
+                ? 'Loaded discs, but some tracks are missing.'
+                : 'Couldn’t load those discs. Please try again.';
+            setAssetsStatus(message, 'warning');
+            console.warn('Some discs could not be loaded from the selected assets:', failures);
+        } else {
+            setAssetsStatus('Discs Loaded', 'success', { autoClear: true });
+        }
+
+        resizePopupToContent();
+    } catch (error) {
+        let handledByFallback = false;
+        if (error?.name === 'AbortError') {
+            setAssetsStatus('Selection cancelled.', 'warning');
+        } else if (isSystemFolderError(error)) {
+            console.warn('Blocked from selecting system-marked folder, attempting fallback flow.');
+            try {
+                await handleRestrictedAssetsSelection();
+                handledByFallback = true;
+            } catch (fallbackError) {
+                if (fallbackError?.name === 'AbortError') {
+                    setAssetsStatus('Selection cancelled.', 'warning');
+                } else {
+                    console.error('Failed to load Minecraft assets (restricted fallback)', fallbackError);
+                    setAssetsStatus(fallbackError?.message || 'Failed to load Minecraft assets.', 'error');
+                }
+                if (!handledByFallback) {
+                    const uploadSucceeded = await handleFileUploadAssetsSelection({ reason: 'systemRestricted' });
+                    handledByFallback = uploadSucceeded;
+                }
+            }
+        } else {
+            console.error('Failed to load Minecraft assets', error);
+            setAssetsStatus(error?.message || 'Failed to load Minecraft assets.', 'error');
+        }
+
+        if (!handledByFallback) {
+            if (!hadExistingLibrary) {
+                resetDiscLibraryState();
+            } else {
+                exposeDiscObjectUrls();
+            }
+        }
+    } finally {
+        isLoadingAssets = false;
+        if (selectAssetsBtn) {
+            selectAssetsBtn.disabled = false;
+        }
+    }
+}
+
+async function handleRestrictedAssetsSelection() {
+    if (typeof window.showDirectoryPicker !== 'function' || typeof window.showOpenFilePicker !== 'function') {
+        throw new Error('Your browser does not support the required file pickers.');
+    }
+
+    const platformName = getPlatformDisplayName();
+    const objectsHint = getObjectsFolderHint();
+    const hiddenTip = getHiddenFolderTip();
+    const blockedMessage = `${platformName} blocked that folder. Select the assets/objects directory instead.`;
+    let combinedMessage = withHint(blockedMessage, objectsHint);
+    if (hiddenTip) {
+        combinedMessage = `${combinedMessage} ${hiddenTip}`;
+    }
+    setAssetsStatus(combinedMessage, 'warning');
+
+    const objectsHandle = await window.showDirectoryPicker({ id: 'minecraft-assets-objects', mode: 'read' });
+    if (!objectsHandle) {
+        throw new DOMException('Selection cancelled.', 'AbortError');
+    }
+
+    const hasObjectsPermission = await ensureReadPermission(objectsHandle);
+    if (!hasObjectsPermission) {
+        throw new Error('Read access to the objects directory was not granted.');
+    }
+
+    const indexesHint = getIndexesFolderHint();
+    setAssetsStatus(withHint('Select the latest JSON inside the indexes folder.', indexesHint), 'warning');
+
+    const pickerResult = await window.showOpenFilePicker({
+        id: 'minecraft-assets-index',
+        multiple: false,
+        excludeAcceptAllOption: false,
+        types: [{
+            description: 'Minecraft asset index',
+            accept: { 'application/json': ['.json'] }
+        }]
+    });
+
+    if (!pickerResult || !pickerResult.length) {
+        throw new DOMException('Selection cancelled.', 'AbortError');
+    }
+
+    const indexFileHandle = pickerResult[0];
+    const hasIndexPermission = await ensureReadPermission(indexFileHandle);
+    if (!hasIndexPermission) {
+        throw new Error('Read access to the selected assets index was not granted.');
+    }
+
+    const indexFile = await indexFileHandle.getFile();
+    if (!indexFile) {
+        throw new Error('Unable to read the selected assets index file.');
+    }
+
+    let parsed;
+    try {
+        parsed = JSON.parse(await indexFile.text());
+    } catch (error) {
+        throw new Error('Failed to parse the selected assets index JSON.');
+    }
+
+    const discs = extractDiscEntriesFromIndex(parsed);
+    const { loadedCount, failures } = await buildRuntimeDiscLibrary({
+        rootHandle: null,
+        objectsHandle,
+        discs,
+        latestIndexName: indexFileHandle.name
+    });
+
+    if (failures.length) {
+        const message = loadedCount > 0
+            ? 'Loaded discs, but some tracks are missing.'
+            : 'Couldn’t load those discs. Please try again.';
+        setAssetsStatus(message, 'warning');
+        console.warn('Some discs could not be loaded from the selected assets index:', failures);
+    } else {
+        setAssetsStatus('Discs Loaded', 'success', { autoClear: true });
+    }
+
+    resizePopupToContent();
+}
+
+async function handleFileUploadAssetsSelection({ reason = null } = {}) {
+    if (isLoadingAssets) {
+        return false;
+    }
+
+    isLoadingAssets = true;
+    if (selectAssetsBtn) {
+        selectAssetsBtn.disabled = true;
+    }
+
+    markDiscLibraryReady(false);
+
+    const hint = getAssetsFolderHint();
+    const tip = getHiddenFolderTip();
+
+    const introMessage = (() => {
+        switch (reason) {
+            case 'platformLimited':
+                return 'macOS blocks that folder. Upload your Minecraft assets instead.';
+            case 'systemRestricted':
+                return 'That folder is restricted. Upload your Minecraft assets instead.';
+            default:
+                return 'Upload your Minecraft assets folder to start listening.';
+        }
+    })();
+
+    let statusMessage = withHint(introMessage, hint);
+    if (tip) {
+        statusMessage = `${statusMessage} ${tip}`;
+    }
+    setAssetsStatus(statusMessage, 'warning');
+
+    let loadSucceeded = false;
+
+    try {
+        const files = await waitForDirectoryUploadSelection(assetsDirectoryInput);
+        if (!files.length) {
+            setAssetsStatus('Selection cancelled.', 'warning');
+            return false;
+        }
+
+        setAssetsStatus('Preparing discs…', 'warning');
+
+        const latestIndex = pickLatestIndexFile(files);
+        if (!latestIndex) {
+            setAssetsStatus('No assets index JSON files were found in the selected folder.', 'error');
+            return false;
+        }
+
+        let parsed;
+        try {
+            parsed = JSON.parse(await latestIndex.file.text());
+        } catch (error) {
+            setAssetsStatus('Failed to parse the selected assets index JSON.', 'error');
+            return false;
+        }
+
+        const discs = extractDiscEntriesFromIndex(parsed);
+        const objectFileMap = collectObjectFiles(files);
+
+        setAssetsStatus('Saving discs…', 'warning');
+
+        let results;
+        try {
+            results = await buildDiscLibraryFromFiles({
+                discs,
+                objectFileMap,
+                latestIndexName: latestIndex.file.name
+            });
+        } catch (error) {
+            console.error('Failed to process uploaded assets', error);
+            setAssetsStatus(error?.message || 'Failed to load the uploaded assets.', 'error');
+            return;
+        }
+
+        if (results.failures.length) {
+            const message = results.loadedCount > 0
+                ? 'Loaded discs, but some tracks are missing.'
+                : 'Couldn’t load those discs. Please try again.';
+            setAssetsStatus(message, 'warning');
+            console.warn('Some discs could not be loaded from the uploaded assets:', results.failures);
+        } else if (results.persisted) {
+            setAssetsStatus('Disc upload successful.', 'success', { autoClear: true, clearDelay: 6000 });
+        } else {
+            setAssetsStatus('Discs ready now, but upload again to save them.', 'warning');
+        }
+
+        resizePopupToContent();
+        loadSucceeded = true;
+    } catch (error) {
+        if (error?.name === 'AbortError') {
+            setAssetsStatus('Selection cancelled.', 'warning');
+        } else {
+            console.error('Failed to upload assets directory', error);
+            setAssetsStatus(error?.message || 'Failed to upload assets directory.', 'error');
+        }
+    } finally {
+        isLoadingAssets = false;
+        if (selectAssetsBtn) {
+            selectAssetsBtn.disabled = false;
+        }
+    }
+
+    return loadSucceeded;
+}
+
+if (selectAssetsBtn) {
+    if (typeof window.showDirectoryPicker !== 'function') {
+        selectAssetsBtn.disabled = true;
+        setAssetsStatus('Your browser does not support selecting local folders.', 'error');
+    } else {
+        selectAssetsBtn.addEventListener('click', () => {
+            handleAssetsSelection().catch(() => {
+                /* already handled */
+            });
+        });
+    }
+}
+
+async function hydrateDiscLibraryFromBackground(assets = {}) {
+    if (discObjectUrlRegistry.size > 0 || isLoadingAssets) {
+        return false;
+    }
+
+    const {
+        objectsDirectory = null,
+        discIndex = [],
+        latestIndexName,
+        hasBlobLibrary = false
+    } = assets;
+
+    if (!Array.isArray(discIndex) || !discIndex.length) {
+        return false;
+    }
+
+    isLoadingAssets = true;
+    showDiscLibraryNotReadyStatus();
+
+    try {
+        const discs = [];
+        const seenKeys = new Set();
+        for (const entry of discIndex) {
+            if (!Array.isArray(entry) || entry.length < 2) {
+                continue;
+            }
+            const key = typeof entry[0] === 'string' ? entry[0] : String(entry[0] ?? '');
+            const hash = typeof entry[1] === 'string' ? entry[1] : null;
+            if (!key || !hash || hash.length < 6) {
+                continue;
+            }
+            const canonicalKey = String(key);
+            const dedupeKey = toAssetKey(canonicalKey) || canonicalKey;
+            if (seenKeys.has(dedupeKey)) {
+                continue;
+            }
+            seenKeys.add(dedupeKey);
+            discs.push({ assetKey: canonicalKey, hash });
+        }
+
+        if (!discs.length) {
+            return false;
+        }
+
+        const sourceLabel = latestIndexName ? `cached assets (${latestIndexName})` : 'cached assets';
+
+        if (objectsDirectory) {
+            const hasPermission = await ensureReadPermission(objectsDirectory);
+            if (hasPermission) {
+                try {
+                    const { loadedCount, failures } = await buildRuntimeDiscLibrary({
+                        rootHandle: null,
+                        objectsHandle: objectsDirectory,
+                        discs,
+                        latestIndexName: latestIndexName || 'cached'
+                    });
+
+                    if (failures.length) {
+                        const message = loadedCount > 0
+                            ? 'Loaded discs, but some tracks are missing.'
+                            : 'Couldn’t load those discs. Please try again.';
+                        setAssetsStatus(message, 'warning');
+                        console.warn('Some discs could not be hydrated from cached assets:', failures);
+                    } else {
+                        setAssetsStatus('Discs Loaded', 'success', { autoClear: true, clearDelay: 5000 });
+                    }
+
+                    resizePopupToContent();
+                    return true;
+                } catch (error) {
+                    console.error('Failed to hydrate disc library from cached assets', error);
+                }
+            }
+        }
+
+        if (!hasBlobLibrary) {
+            setAssetsStatus(DEFAULT_ASSETS_STATUS);
+            return false;
+        }
+
+        const objectFileMap = new Map();
+        const missingKeys = [];
+
+        for (const disc of discs) {
+            const { assetKey, hash } = disc;
+            const relativePath = `objects/${hash.slice(0, 2)}/${hash}`;
+            if (objectFileMap.has(relativePath)) {
+                continue;
+            }
+
+            // eslint-disable-next-line no-await-in-loop
+            const response = await requestDiscBlob(assetKey);
+            if (!response || !(response.blob instanceof Blob)) {
+                missingKeys.push(assetKey);
+                continue;
+            }
+
+            const effectiveHash = typeof response.hash === 'string' && response.hash.length >= 6
+                ? response.hash
+                : hash;
+
+            const finalPath = `objects/${effectiveHash.slice(0, 2)}/${effectiveHash}`;
+            try {
+                const file = new File([response.blob], effectiveHash, { type: 'audio/ogg' });
+                objectFileMap.set(finalPath, file);
+            } catch (error) {
+                console.warn('Failed to reconstruct file for', assetKey, error);
+                missingKeys.push(assetKey);
+            }
+        }
+
+        if (!objectFileMap.size) {
+            if (missingKeys.length) {
+                setAssetsStatus('Couldn’t restore some saved discs.', 'warning');
+                console.warn('Missing cached blob entries for discs:', missingKeys, sourceLabel);
+            } else {
+                setAssetsStatus(DEFAULT_ASSETS_STATUS);
+            }
+            markDiscLibraryReady(false);
+            return false;
+        }
+
+        try {
+            const { loadedCount, failures } = await buildDiscLibraryFromFiles({
+                discs,
+                objectFileMap,
+                latestIndexName: latestIndexName || 'cached'
+            }, { persistToBackground: false });
+
+            const totalFailures = failures.length + missingKeys.length;
+            if (totalFailures > 0) {
+                const message = loadedCount > 0
+                    ? 'Loaded discs, but some tracks are missing.'
+                    : 'Couldn’t load those discs. Please try again.';
+                setAssetsStatus(message, 'warning');
+                if (failures.length) {
+                    console.warn('Some discs could not be recreated from cached blobs:', failures);
+                }
+                if (missingKeys.length) {
+                    console.warn('Missing cached blob entries for discs:', missingKeys);
+                }
+            } else {
+                setAssetsStatus('Discs Loaded', 'success', { autoClear: true, clearDelay: 5000 });
+                markDiscLibraryReady(true);
+            }
+
+            resizePopupToContent();
+            return true;
+        } catch (error) {
+            console.error('Failed to rebuild disc library from cached blobs', error);
+            markDiscLibraryReady(false);
+            return false;
+        }
+    } finally {
+        isLoadingAssets = false;
+    }
+}
+
+function requestAssetsFromBackground() {
+    if (discObjectUrlRegistry.size > 0 || isLoadingAssets) {
+        return;
+    }
+
+    if (!chrome?.runtime?.sendMessage) {
+        return;
+    }
+
+    chrome.runtime.sendMessage({ type: 'requestMinecraftAssets' }, response => {
+        if (chrome.runtime.lastError) {
+            return;
+        }
+        if (response && response.assets) {
+            hydrateDiscLibraryFromBackground(response.assets).catch(() => {
+                /* hydration failure already logged */
+            });
+        }
+    });
+}
+
+function requestDiscBlob(key) {
+    return new Promise(resolve => {
+        if (!chrome?.runtime?.sendMessage) {
+            resolve(null);
+            return;
+        }
+        chrome.runtime.sendMessage({ type: 'requestDiscBlob', key }, response => {
+            if (chrome.runtime.lastError) {
+                resolve(null);
+                return;
+            }
+            // Convert base64 back to Blob
+            if (response && typeof response.base64Data === 'string') {
+                try {
+                    const mimeType = response.mimeType || 'audio/ogg';
+                    const binaryString = atob(response.base64Data);
+                    const bytes = new Uint8Array(binaryString.length);
+                    for (let i = 0; i < binaryString.length; i++) {
+                        bytes[i] = binaryString.charCodeAt(i);
+                    }
+                    const blob = new Blob([bytes], { type: mimeType });
+                    console.log(`[MinecraftJukebox] Reconstructed blob for playback: ${response.key}, size: ${blob.size} bytes, type: ${blob.type}`);
+                    resolve({ blob, hash: response.hash, key: response.key });
+                } catch (error) {
+                    console.error('[MinecraftJukebox] Failed to reconstruct blob from base64:', error);
+                    resolve(null);
+                }
+            } else {
+                console.warn('[MinecraftJukebox] No base64 data received for key:', key);
+                resolve(response);
+            }
+        });
+    });
+}
+
 playPauseBtn.addEventListener('click', () => {
     togglePlayback();
 });
@@ -448,6 +1871,16 @@ progressBar.addEventListener('change', event => {
 });
 
 chrome.runtime.onMessage.addListener(message => {
+    if (message.type === 'minecraftAssetsStatus') {
+        if (typeof message.message === 'string') {
+            const variant = message.level === 'success' ? 'success'
+                : message.level === 'warning' ? 'warning'
+                    : 'error';
+            setAssetsStatus(message.message, variant);
+            resizePopupToContent();
+        }
+    }
+
     if (message.type === 'progress') {
         applyStatus(message);
     }
@@ -462,6 +1895,8 @@ chrome.runtime.onMessage.addListener(message => {
         resizePopupToContent();
     }
 });
+
+requestAssetsFromBackground();
 
 chrome.storage.local.get(['currentDiscId', 'playbackState', 'uiScale', 'volumeLevel'], data => {
     if (data.uiScale) {

@@ -6,6 +6,7 @@ let currentVolume = 1;
 let audioContext = null;
 let gainNode = null;
 let sourceNode = null;
+let currentBlobUrl = null;
 
 function safeSendMessage(payload) {
     const maybePromise = chrome.runtime.sendMessage(payload);
@@ -28,6 +29,17 @@ function detachAudioHandlers(audio) {
     audio.removeEventListener('pause', sendProgressUpdate);
     audio.removeEventListener('loadedmetadata', sendProgressUpdate);
     audio.removeEventListener('ended', handleEnded);
+}
+
+function revokeCurrentBlobUrl() {
+    if (currentBlobUrl) {
+        try {
+            URL.revokeObjectURL(currentBlobUrl);
+        } catch (error) {
+            /* ignore revoke errors */
+        }
+        currentBlobUrl = null;
+    }
 }
 
 function getDuration(audio) {
@@ -96,13 +108,55 @@ function ensureAudioGraph(audio) {
     }
 }
 
-function playAudio({ source, volume = 1, discId }) {
+function playAudio({ source, blob, base64Data, mimeType, volume = 1, discId }) {
+    console.log(`[MinecraftJukebox Offscreen] playAudio called for ${discId}`);
+    console.log(`[MinecraftJukebox Offscreen] source:`, source);
+    console.log(`[MinecraftJukebox Offscreen] blob:`, blob);
+    console.log(`[MinecraftJukebox Offscreen] base64Data length:`, base64Data?.length);
+    console.log(`[MinecraftJukebox Offscreen] mimeType:`, mimeType);
+    
     if (currentlyPlayingAudio) {
         detachAudioHandlers(currentlyPlayingAudio);
         currentlyPlayingAudio.pause();
     }
 
-    const audio = new Audio(source);
+    revokeCurrentBlobUrl();
+
+    let resolvedSource = source || null;
+    
+    // Handle base64 data
+    if (!resolvedSource && typeof base64Data === 'string') {
+        try {
+            const binaryString = atob(base64Data);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            const blob = new Blob([bytes], { type: mimeType || 'audio/ogg' });
+            currentBlobUrl = URL.createObjectURL(blob);
+            resolvedSource = currentBlobUrl;
+            console.log(`[MinecraftJukebox Offscreen] Created blob from base64, size: ${blob.size} bytes`);
+            console.log(`[MinecraftJukebox Offscreen] Created object URL: ${currentBlobUrl}`);
+        } catch (error) {
+            console.error(`[MinecraftJukebox Offscreen] Failed to decode base64:`, error);
+        }
+    }
+    
+    // Handle direct blob
+    if (!resolvedSource && blob instanceof Blob) {
+        currentBlobUrl = URL.createObjectURL(blob);
+        resolvedSource = currentBlobUrl;
+        console.log(`[MinecraftJukebox Offscreen] Created object URL from blob: ${currentBlobUrl}`);
+    }
+
+    if (!resolvedSource) {
+        console.error(`[MinecraftJukebox Offscreen] No valid source for ${discId}`);
+        notifyTrackStopped('error');
+        return;
+    }
+
+    console.log(`[MinecraftJukebox Offscreen] Creating Audio with source: ${resolvedSource}`);
+    const audio = new Audio(resolvedSource);
     currentVolume = clampVolume(volume);
     audio.loop = false;
     audio.volume = 1;
@@ -118,17 +172,24 @@ function playAudio({ source, volume = 1, discId }) {
     }
 
     if (audioContext && audioContext.state === 'suspended') {
+        console.log(`[MinecraftJukebox Offscreen] Resuming audio context`);
         audioContext.resume().catch(() => {});
     }
 
     sendProgressUpdate();
 
-    audio.play().then(sendProgressUpdate).catch(() => {
+    console.log(`[MinecraftJukebox Offscreen] Attempting to play audio for ${discId}`);
+    audio.play().then(() => {
+        console.log(`[MinecraftJukebox Offscreen] Audio play started successfully for ${discId}`);
+        sendProgressUpdate();
+    }).catch(error => {
+        console.error(`[MinecraftJukebox Offscreen] Audio play failed for ${discId}:`, error);
         notifyTrackStopped('error');
         detachAudioHandlers(audio);
         if (currentlyPlayingAudio === audio) {
             currentlyPlayingAudio = null;
         }
+        revokeCurrentBlobUrl();
     });
 }
 
@@ -184,6 +245,7 @@ function stopAudio() {
     sendProgressUpdate();
     detachAudioHandlers(audio);
     currentlyPlayingAudio = null;
+    revokeCurrentBlobUrl();
     notifyTrackStopped('stopped');
 }
 
@@ -208,6 +270,7 @@ function handleEnded() {
         detachAudioHandlers(currentlyPlayingAudio);
         currentlyPlayingAudio = null;
     }
+    revokeCurrentBlobUrl();
     notifyTrackStopped('ended');
 }
 

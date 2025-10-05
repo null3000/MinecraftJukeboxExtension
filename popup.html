@@ -25,8 +25,13 @@
                 </label>
                 <input type="range" id="volume-slider" class="volume-slider" min="0" max="300" value="100" aria-label="Volume">
             </div>
+            <button id="select-assets-btn" class="control-btn assets-btn" type="button">Use Local Minecraft Audio</button>
         </div>
     </div>
+    <div class="assets-status-row" role="status" aria-live="polite">
+        <span id="assets-status" class="assets-status">Select your .minecraft/assets folder to enable playback.</span>
+    </div>
+    <input type="file" id="assets-directory-input" class="hidden-input" webkitdirectory multiple hidden>
     <div id="discs">
         <div class="disc disc-13" data-disc-id="13"></div>
         <div class="disc disc-cat" data-disc-id="cat"></div>
