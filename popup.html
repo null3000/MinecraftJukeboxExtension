@@ -8,7 +8,6 @@
 </head>
 <body>
     <div class="top-bar">
-        <div class="title">Select a Music Disc</div>
         <div class="top-controls">
             <div class="settings-row" title="Adjust popup size">
                 <label for="ui-scale-select" class="settings-label">Size</label>
@@ -25,41 +24,56 @@
                 </label>
                 <input type="range" id="volume-slider" class="volume-slider" min="0" max="300" value="100" aria-label="Volume">
             </div>
-            <button id="select-assets-btn" class="control-btn assets-btn" type="button">Use Local Minecraft Audio</button>
         </div>
     </div>
-    <div class="assets-status-row" role="status" aria-live="polite">
-        <span id="assets-status" class="assets-status">Select your .minecraft/assets folder to enable playback.</span>
+    <div class="assets-status-row hidden" role="status" aria-live="polite">
+        <span id="assets-status" class="assets-status"></span>
     </div>
     <input type="file" id="assets-directory-input" class="hidden-input" webkitdirectory multiple hidden>
-    <div id="discs">
-        <div class="disc disc-13" data-disc-id="13"></div>
-        <div class="disc disc-cat" data-disc-id="cat"></div>
-        <div class="disc disc-blocks" data-disc-id="blocks"></div>
-        <div class="disc disc-chirp" data-disc-id="chirp"></div>
-        <div class="disc disc-far" data-disc-id="far"></div>
-        <div class="disc disc-mall" data-disc-id="mall"></div>
-        <div class="disc disc-mellohi" data-disc-id="mellohi"></div>
-        <div class="disc disc-stal" data-disc-id="stal"></div>
-        <div class="disc disc-strad" data-disc-id="strad"></div>
-        <div class="disc disc-ward" data-disc-id="ward"></div>
-        <div class="disc disc-11" data-disc-id="11"></div>
-        <div class="disc disc-wait" data-disc-id="wait"></div>
-        <div class="disc disc-otherside" data-disc-id="otherside"></div>
-        <div class="disc disc-5" data-disc-id="5"></div>
-        <div class="disc disc-pigstep" data-disc-id="Pigstep"></div>
-        <div class="disc disc-relic" data-disc-id="Relic"></div>
-        <div class="disc disc-creator" data-disc-id="Creator"></div>
-        <div class="disc disc-creator-music-box" data-disc-id="Creator(MB)"></div>
-        <div class="disc disc-precipice" data-disc-id="Precipice"></div>
-        <div class="disc disc-tears" data-disc-id="Tears"></div>
-        <div class="disc disc-lava-chicken" data-disc-id="Lava Chicken"></div>
-        <div class="disc default-1hr" data-disc-id="Default 1hr"></div>
 
-        <div class="disc-footer">
-            <h4 id="now-playing" class="now-playing">Now Playing:</h4>
-            <p class="queue-tip">Left-click to play • Right/Shift-click to queue</p>
+<section class="jukebox-hero">
+    <button type="button" class="disc hero-disc" data-disc-id="The Jukebox" aria-label="Play The Jukebox"></button>
+    <p class="jukebox-hint">Click the Jukebox to Play Shuffled Minecraft Music.</p>
+</section>
+
+    <section class="disc-menu">
+        <button id="disc-menu-toggle" class="disc-menu-toggle" type="button" aria-expanded="false" aria-controls="disc-menu-panel">
+            <span class="toggle-label">Music Discs</span>
+            <span class="toggle-icon" aria-hidden="true">▸</span>
+        </button>
+        <div id="disc-menu-panel" class="disc-menu-panel" hidden>
+            <div class="disc-panel-actions">
+                <button id="select-assets-btn" class="control-btn assets-btn" type="button">Use Local Minecraft Audio</button>
+                <p class="queue-tip">Left-click to start playing • Right/Shift-click to queue tracks</p>
+            </div>
+            <div id="discs">
+                <div class="disc disc-13" data-disc-id="13"></div>
+                <div class="disc disc-cat" data-disc-id="cat"></div>
+                <div class="disc disc-blocks" data-disc-id="blocks"></div>
+                <div class="disc disc-chirp" data-disc-id="chirp"></div>
+                <div class="disc disc-far" data-disc-id="far"></div>
+                <div class="disc disc-mall" data-disc-id="mall"></div>
+                <div class="disc disc-mellohi" data-disc-id="mellohi"></div>
+                <div class="disc disc-stal" data-disc-id="stal"></div>
+                <div class="disc disc-strad" data-disc-id="strad"></div>
+                <div class="disc disc-ward" data-disc-id="ward"></div>
+                <div class="disc disc-11" data-disc-id="11"></div>
+                <div class="disc disc-wait" data-disc-id="wait"></div>
+                <div class="disc disc-otherside" data-disc-id="otherside"></div>
+                <div class="disc disc-5" data-disc-id="5"></div>
+                <div class="disc disc-pigstep" data-disc-id="Pigstep"></div>
+                <div class="disc disc-relic" data-disc-id="Relic"></div>
+                <div class="disc disc-creator" data-disc-id="Creator"></div>
+                <div class="disc disc-creator-music-box" data-disc-id="Creator(MB)"></div>
+                <div class="disc disc-precipice" data-disc-id="Precipice"></div>
+                <div class="disc disc-tears" data-disc-id="Tears"></div>
+                <div class="disc disc-lava-chicken" data-disc-id="Lava Chicken"></div>
+            </div>
         </div>
+    </section>
+
+    <div class="disc-footer">
+        <h4 id="now-playing" class="now-playing">Now Playing:</h4>
     </div>
 
     <div class="playback-bar">

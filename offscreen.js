@@ -29,6 +29,13 @@ function detachAudioHandlers(audio) {
     audio.removeEventListener('pause', sendProgressUpdate);
     audio.removeEventListener('loadedmetadata', sendProgressUpdate);
     audio.removeEventListener('ended', handleEnded);
+    if (audio._minecraftErrorHandler) {
+        audio.removeEventListener('error', audio._minecraftErrorHandler);
+        delete audio._minecraftErrorHandler;
+    }
+    if (audio._minecraftErrorHandled) {
+        delete audio._minecraftErrorHandled;
+    }
 }
 
 function revokeCurrentBlobUrl() {
@@ -156,13 +163,33 @@ function playAudio({ source, blob, base64Data, mimeType, volume = 1, discId }) {
     }
 
     console.log(`[MinecraftJukebox Offscreen] Creating Audio with source: ${resolvedSource}`);
-    const audio = new Audio(resolvedSource);
+    const audio = new Audio();
+    if (/^https?:\/\//i.test(resolvedSource)) {
+        audio.crossOrigin = 'anonymous';
+        audio.preload = 'auto';
+    }
+    audio.src = resolvedSource;
     currentVolume = clampVolume(volume);
     audio.loop = false;
     audio.volume = 1;
     audio.currentTime = 0;
 
     attachAudioHandlers(audio);
+    const handleError = event => {
+        if (audio._minecraftErrorHandled) {
+            return;
+        }
+        audio._minecraftErrorHandled = true;
+        console.error(`[MinecraftJukebox Offscreen] Audio element error for ${discId}:`, event?.error || event);
+        notifyTrackStopped('error');
+        detachAudioHandlers(audio);
+        if (currentlyPlayingAudio === audio) {
+            currentlyPlayingAudio = null;
+        }
+        revokeCurrentBlobUrl();
+    };
+    audio._minecraftErrorHandler = handleError;
+    audio.addEventListener('error', handleError);
     currentlyPlayingAudio = audio;
     currentDiscId = discId || currentDiscId;
 
@@ -184,12 +211,7 @@ function playAudio({ source, blob, base64Data, mimeType, volume = 1, discId }) {
         sendProgressUpdate();
     }).catch(error => {
         console.error(`[MinecraftJukebox Offscreen] Audio play failed for ${discId}:`, error);
-        notifyTrackStopped('error');
-        detachAudioHandlers(audio);
-        if (currentlyPlayingAudio === audio) {
-            currentlyPlayingAudio = null;
-        }
-        revokeCurrentBlobUrl();
+        handleError(error);
     });
 }
 

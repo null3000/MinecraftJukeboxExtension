@@ -14,14 +14,18 @@ const volumeSlider = document.getElementById('volume-slider');
 const volumeIcon = document.querySelector('.volume-icon');
 const selectAssetsBtn = document.getElementById('select-assets-btn');
 const assetsStatusLabel = document.getElementById('assets-status');
+const assetsStatusRow = document.querySelector('.assets-status-row');
 const assetsDirectoryInput = document.getElementById('assets-directory-input');
+const discElements = Array.from(document.querySelectorAll('.disc'));
+const discMenuToggle = document.getElementById('disc-menu-toggle');
+const discMenuPanel = document.getElementById('disc-menu-panel');
 
 let assetsStatusClearTimer = null;
 let isDiscLibraryReady = false;
 
 const ASSET_RECORD_PATTERN = /^minecraft\/sounds\/records\/([^/]+)\.ogg$/;
 const STATUS_VARIANTS = ['error', 'success', 'warning'];
-const READY_ASSETS_STATUS = 'Select a disc to play.';
+const READY_ASSETS_STATUS = '';
 
 function detectPlatform() {
     const uaDataPlatform = navigator.userAgentData?.platform;
@@ -72,9 +76,12 @@ const DISC_ID_ALIASES = new Map([
     ['lava chicken', 'lava_chicken'],
     ['Lava Chicken', 'lava_chicken'],
     ['lava_chicken', 'lava_chicken'],
-    ['Default 1hr', 'default_1hr'],
-    ['default 1hr', 'default_1hr'],
-    ['default_1hr', 'default_1hr'],
+    ['The Jukebox', 'the_jukebox'],
+    ['the jukebox', 'the_jukebox'],
+    ['the_jukebox', 'the_jukebox'],
+    ['Default 1hr', 'the_jukebox'],
+    ['default 1hr', 'the_jukebox'],
+    ['default_1hr', 'the_jukebox'],
     ['music_disc.13', '13'],
     ['music_disc.11', '11'],
     ['music_disc.5', '5'],
@@ -90,6 +97,372 @@ const DISC_ID_ALIASES = new Map([
     ['music_disc.wait', 'wait'],
     ['music_disc.otherside', 'otherside']
 ]);
+
+const STREAMING_SOURCE_MAP = new Map([
+    ['11', [
+        'https://minecraft.wiki/images/11.ogg?348cd'
+    ]],
+    ['cat', [
+        'https://dn721500.ca.archive.org/0/items/C418-MinecraftSoundtrackVolumeAlpha/19%20-%20Cat.mp3'
+    ]],
+    ['blocks', [
+        'https://dn721809.ca.archive.org/0/items/minecraft-volume-beta/Minecraft%20Volume%20Beta/28.%20Blocks.mp3'
+    ]],
+    ['chirp', [
+        'https://dn721809.ca.archive.org/0/items/minecraft-volume-beta/Minecraft%20Volume%20Beta/20.%20Chirp.mp3'
+    ]],
+    ['far', [
+        'https://dn721809.ca.archive.org/0/items/minecraft-volume-beta/Minecraft%20Volume%20Beta/29.%20Far.mp3'
+    ]],
+    ['mall', [
+        'https://dn721809.ca.archive.org/0/items/minecraft-volume-beta/Minecraft%20Volume%20Beta/27.%20Mall.mp3'
+    ]],
+    ['mellohi', [
+        'https://dn721809.ca.archive.org/0/items/minecraft-volume-beta/Minecraft%20Volume%20Beta/22.%20Mellohi.mp3'
+    ]],
+    ['stal', [
+        'https://dn721809.ca.archive.org/0/items/minecraft-volume-beta/Minecraft%20Volume%20Beta/23%20Stal.mp3'
+    ]],
+    ['strad', [
+        'https://ia902309.us.archive.org/6/items/minecraft-volume-beta/Minecraft%20Volume%20Beta/24.%20Strad.mp3'
+    ]],
+    ['ward', [
+        'https://dn721809.ca.archive.org/0/items/minecraft-volume-beta/Minecraft%20Volume%20Beta/26.%20Ward.mp3'
+    ]],
+    ['wait', [
+        'https://ia802309.us.archive.org/6/items/minecraft-volume-beta/Minecraft%20Volume%20Beta/21.%20Wait.mp3'
+    ]],
+    ['pigstep', [
+        'https://dn721806.ca.archive.org/0/items/minecraft-nether-update-original-game-soundtrack-flac/04.%20Lena%20Raine%20-%20Pigstep%20%28Mono%20Mix%29.mp3'
+    ]]
+]);
+
+const JUKEBOX_DISC_ID = 'the_jukebox';
+const JUKEBOX_AUTOPLAY_COUNT = 10;
+const JUKEBOX_TRACKS = Object.freeze([
+    { title: 'Key', url: 'https://archive.org/download/C418-MinecraftSoundtrackVolumeAlpha/01%20-%20Key.mp3' },
+    { title: 'Door', url: 'https://archive.org/download/C418-MinecraftSoundtrackVolumeAlpha/02%20-%20Door.mp3' },
+    { title: 'Subwoofer Lullaby', url: 'https://archive.org/download/C418-MinecraftSoundtrackVolumeAlpha/03%20-%20Subwoofer%20Lullaby.mp3' },
+    { title: 'Living Mice', url: 'https://archive.org/download/C418-MinecraftSoundtrackVolumeAlpha/05%20-%20Living%20Mice.mp3' },
+    { title: 'Moog City', url: 'https://archive.org/download/C418-MinecraftSoundtrackVolumeAlpha/06%20-%20Moog%20City.mp3' },
+    { title: 'Haggstrom', url: 'https://archive.org/download/C418-MinecraftSoundtrackVolumeAlpha/07%20-%20Haggstrom.mp3' },
+    { title: 'Minecraft', url: 'https://archive.org/download/C418-MinecraftSoundtrackVolumeAlpha/08%20-%20Minecraft.mp3' },
+    { title: 'Oxygene', url: 'https://archive.org/download/C418-MinecraftSoundtrackVolumeAlpha/09%20-%20Oxyg%C3%A8ne.mp3' },
+    { title: 'Equinoxe', url: 'https://archive.org/download/C418-MinecraftSoundtrackVolumeAlpha/10%20-%20%C3%89quinoxe.mp3' },
+    { title: 'Mice on Venus', url: 'https://archive.org/download/C418-MinecraftSoundtrackVolumeAlpha/11%20-%20Mice%20on%20Venus.mp3' },
+    { title: 'Dry Hands', url: 'https://archive.org/download/C418-MinecraftSoundtrackVolumeAlpha/12%20-%20Dry%20Hands.mp3' },
+    { title: 'Wet Hands', url: 'https://archive.org/download/C418-MinecraftSoundtrackVolumeAlpha/13%20-%20Wet%20Hands.mp3' },
+    { title: 'Clark', url: 'https://archive.org/download/C418-MinecraftSoundtrackVolumeAlpha/14%20-%20Clark.mp3' },
+    { title: 'Chris', url: 'https://archive.org/download/C418-MinecraftSoundtrackVolumeAlpha/15%20-%20Chris.mp3' },
+    { title: 'Thirteen', url: 'https://archive.org/download/C418-MinecraftSoundtrackVolumeAlpha/16%20-%20Thirteen.mp3' },
+    { title: 'Excuse', url: 'https://archive.org/download/C418-MinecraftSoundtrackVolumeAlpha/17%20-%20Excuse.mp3' },
+    { title: 'Sweden', url: 'https://archive.org/download/C418-MinecraftSoundtrackVolumeAlpha/18%20-%20Sweden.mp3' },
+    { title: 'Cat', url: 'https://archive.org/download/C418-MinecraftSoundtrackVolumeAlpha/19%20-%20Cat.mp3' },
+    { title: 'Dog', url: 'https://archive.org/download/C418-MinecraftSoundtrackVolumeAlpha/20%20-%20Dog.mp3' },
+    { title: 'Danny', url: 'https://archive.org/download/C418-MinecraftSoundtrackVolumeAlpha/21%20-%20Danny.mp3' },
+    { title: 'Beginning', url: 'https://archive.org/download/C418-MinecraftSoundtrackVolumeAlpha/22%20-%20Beginning.mp3' },
+    { title: 'Droopy Likes Ricochet', url: 'https://archive.org/download/C418-MinecraftSoundtrackVolumeAlpha/23%20-%20Droopy%20Likes%20Ricochet.mp3' },
+    { title: 'Droopy Likes Your Face', url: 'https://archive.org/download/C418-MinecraftSoundtrackVolumeAlpha/24%20-%20Droopy%20Likes%20Your%20Face.mp3' },
+    { title: 'Ki', url: 'https://archive.org/download/Minecraftostvolumebeta/C418-Minecraft%20Soundtrack%20Volume%20Beta/01.%20Ki.mp3' },
+    { title: 'Alpha', url: 'https://archive.org/download/Minecraftostvolumebeta/C418-Minecraft%20Soundtrack%20Volume%20Beta/02.%20Alpha.mp3' },
+    { title: 'Dead Voxel', url: 'https://archive.org/download/Minecraftostvolumebeta/C418-Minecraft%20Soundtrack%20Volume%20Beta/03.%20Dead%20Voxel.mp3' },
+    { title: 'Blind Spots', url: 'https://archive.org/download/Minecraftostvolumebeta/C418-Minecraft%20Soundtrack%20Volume%20Beta/04.%20Blind%20Spots.mp3' },
+    { title: 'Flake', url: 'https://archive.org/download/Minecraftostvolumebeta/C418-Minecraft%20Soundtrack%20Volume%20Beta/05.%20Flake.mp3' },
+    { title: 'Moog City 2', url: 'https://archive.org/download/Minecraftostvolumebeta/C418-Minecraft%20Soundtrack%20Volume%20Beta/06.%20Moog%20City%202.mp3' },
+    { title: 'Concrete Halls', url: 'https://archive.org/download/Minecraftostvolumebeta/C418-Minecraft%20Soundtrack%20Volume%20Beta/07.%20Concrete%20Halls.mp3' },
+    { title: 'Biome Fest', url: 'https://archive.org/download/Minecraftostvolumebeta/C418-Minecraft%20Soundtrack%20Volume%20Beta/08.%20Biome%20Fest.mp3' },
+    { title: 'Mutation', url: 'https://archive.org/download/Minecraftostvolumebeta/C418-Minecraft%20Soundtrack%20Volume%20Beta/09.%20Mutation.mp3' },
+    { title: 'Haunt Muskie', url: 'https://archive.org/download/Minecraftostvolumebeta/C418-Minecraft%20Soundtrack%20Volume%20Beta/10.%20Haunt%20Muskie.mp3' },
+    { title: 'Warmth', url: 'https://archive.org/download/Minecraftostvolumebeta/C418-Minecraft%20Soundtrack%20Volume%20Beta/11.%20Warmth.mp3' },
+    { title: 'Floating Trees', url: 'https://archive.org/download/Minecraftostvolumebeta/C418-Minecraft%20Soundtrack%20Volume%20Beta/12.%20Floating%20Trees.mp3' },
+    { title: 'Aria Math', url: 'https://archive.org/download/Minecraftostvolumebeta/C418-Minecraft%20Soundtrack%20Volume%20Beta/13.%20Aria%20Math.mp3' },
+    { title: 'Kyoto', url: 'https://archive.org/download/Minecraftostvolumebeta/C418-Minecraft%20Soundtrack%20Volume%20Beta/14.%20Kyoto.mp3' },
+    { title: 'Ballad of the Cats', url: 'https://archive.org/download/Minecraftostvolumebeta/C418-Minecraft%20Soundtrack%20Volume%20Beta/15.%20Ballad%20of%20the%20Cats.mp3' },
+    { title: 'Taswell', url: 'https://archive.org/download/Minecraftostvolumebeta/C418-Minecraft%20Soundtrack%20Volume%20Beta/16.%20Taswell.mp3' },
+    { title: 'Beginning 2', url: 'https://archive.org/download/Minecraftostvolumebeta/C418-Minecraft%20Soundtrack%20Volume%20Beta/17.%20Beginning%202.mp3' },
+    { title: 'Dreiton', url: 'https://archive.org/download/Minecraftostvolumebeta/C418-Minecraft%20Soundtrack%20Volume%20Beta/18.%20Dreiton.mp3' },
+    { title: 'The End', url: 'https://archive.org/download/Minecraftostvolumebeta/C418-Minecraft%20Soundtrack%20Volume%20Beta/19.%20The%20End.mp3' },
+    { title: 'Chirp', url: 'https://archive.org/download/Minecraftostvolumebeta/C418-Minecraft%20Soundtrack%20Volume%20Beta/20.%20Chirp.mp3' },
+    { title: 'Wait', url: 'https://archive.org/download/Minecraftostvolumebeta/C418-Minecraft%20Soundtrack%20Volume%20Beta/21.%20Wait.mp3' },
+    { title: 'Mellohi', url: 'https://archive.org/download/Minecraftostvolumebeta/C418-Minecraft%20Soundtrack%20Volume%20Beta/22.%20Mellohi.mp3' },
+    { title: 'Stal', url: 'https://archive.org/download/Minecraftostvolumebeta/C418-Minecraft%20Soundtrack%20Volume%20Beta/23%20Stal.mp3' },
+    { title: 'Strad', url: 'https://archive.org/download/Minecraftostvolumebeta/C418-Minecraft%20Soundtrack%20Volume%20Beta/24.%20Strad.mp3' },
+    { title: 'Eleven', url: 'https://archive.org/download/Minecraftostvolumebeta/C418-Minecraft%20Soundtrack%20Volume%20Beta/25.%20Eleven.mp3' },
+    { title: 'Ward', url: 'https://archive.org/download/Minecraftostvolumebeta/C418-Minecraft%20Soundtrack%20Volume%20Beta/26.%20Ward.mp3' },
+    { title: 'Mall', url: 'https://archive.org/download/Minecraftostvolumebeta/C418-Minecraft%20Soundtrack%20Volume%20Beta/27.%20Mall.mp3' },
+    { title: 'Blocks', url: 'https://archive.org/download/Minecraftostvolumebeta/C418-Minecraft%20Soundtrack%20Volume%20Beta/28.%20Blocks.mp3' },
+    { title: 'Far', url: 'https://archive.org/download/Minecraftostvolumebeta/C418-Minecraft%20Soundtrack%20Volume%20Beta/29.%20Far.mp3' },
+    { title: 'Intro', url: 'https://archive.org/download/Minecraftostvolumebeta/C418-Minecraft%20Soundtrack%20Volume%20Beta/30.%20Intro.mp3' },
+    { title: 'Chrysopoeia', url: 'https://archive.org/download/minecraft-nether-update-original-game-soundtrack-flac/01.%20Lena%20Raine%20-%20Chrysopoeia.mp3' },
+    { title: 'Rubedo', url: 'https://archive.org/download/minecraft-nether-update-original-game-soundtrack-flac/02.%20Lena%20Raine%20-%20Rubedo.mp3' },
+    { title: 'So Below', url: 'https://archive.org/download/minecraft-nether-update-original-game-soundtrack-flac/03.%20Lena%20Raine%20-%20So%20Below.mp3' },
+    { title: 'Pigstep', url: 'https://archive.org/download/minecraft-nether-update-original-game-soundtrack-flac/04.%20Lena%20Raine%20-%20Pigstep%20%28Mono%20Mix%29.mp3' }
+]);
+
+let streamingHostsWarmed = false;
+
+function normalizeStreamingUrl(url) {
+    if (typeof url !== 'string') {
+        return null;
+    }
+    const trimmed = url.trim();
+    if (!trimmed) {
+        return null;
+    }
+    return /^https?:\/\//i.test(trimmed) ? trimmed : null;
+}
+
+function isStreamingEnabled() {
+    return true;
+}
+
+function warmStreamingHosts() {
+    if (streamingHostsWarmed || typeof document === 'undefined') {
+        return;
+    }
+
+    const head = document.head || document.getElementsByTagName('head')[0];
+    if (!head) {
+        return;
+    }
+
+    const origins = new Set();
+    for (const urls of STREAMING_SOURCE_MAP.values()) {
+        if (!Array.isArray(urls)) {
+            continue;
+        }
+        for (const candidate of urls) {
+            const normalized = normalizeStreamingUrl(candidate);
+            if (!normalized) {
+                continue;
+            }
+            try {
+                origins.add(new URL(normalized).origin);
+            } catch (error) {
+                /* ignore invalid streaming URLs */
+            }
+        }
+    }
+
+    for (const track of JUKEBOX_TRACKS) {
+        if (!track || typeof track.url !== 'string') {
+            continue;
+        }
+        const normalized = normalizeStreamingUrl(track.url);
+        if (!normalized) {
+            continue;
+        }
+        try {
+            origins.add(new URL(normalized).origin);
+        } catch (error) {
+            /* ignore invalid streaming URLs */
+        }
+    }
+
+    origins.forEach(origin => {
+        const link = document.createElement('link');
+        link.rel = 'preconnect';
+        link.href = origin;
+        link.crossOrigin = 'anonymous';
+        head.appendChild(link);
+    });
+
+    streamingHostsWarmed = true;
+}
+
+if (typeof document !== 'undefined') {
+    warmStreamingHosts();
+}
+
+function slugifyForJukebox(value) {
+    return String(value || '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+}
+
+function secureRandomIntExclusive(max) {
+    if (!Number.isInteger(max) || max <= 0) {
+        return 0;
+    }
+    if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+        const uint32 = new Uint32Array(1);
+        const upperBound = 0x100000000;
+        const acceptableTop = upperBound - (upperBound % max);
+        do {
+            crypto.getRandomValues(uint32);
+        } while (uint32[0] >= acceptableTop);
+        return uint32[0] % max;
+    }
+    return Math.floor(Math.random() * max);
+}
+
+function shuffleArrayInPlace(array) {
+    for (let index = array.length - 1; index > 0; index -= 1) {
+        const swapIndex = secureRandomIntExclusive(index + 1);
+        if (swapIndex !== index) {
+            const temp = array[index];
+            array[index] = array[swapIndex];
+            array[swapIndex] = temp;
+        }
+    }
+    return array;
+}
+
+function isJukeboxDisc(discId) {
+    return toAssetKey(discId) === JUKEBOX_DISC_ID;
+}
+
+function getRandomizedJukeboxTracks(limit) {
+    if (!Number.isInteger(limit) || limit <= 0) {
+        return [];
+    }
+    const candidates = JUKEBOX_TRACKS.filter(track => {
+        return track
+            && typeof track.title === 'string'
+            && track.title.trim()
+            && typeof track.url === 'string'
+            && normalizeStreamingUrl(track.url);
+    }).map(track => ({
+        title: track.title.trim(),
+        url: normalizeStreamingUrl(track.url)
+    }));
+    if (!candidates.length) {
+        return [];
+    }
+    const pool = shuffleArrayInPlace(candidates.slice());
+    return pool.slice(0, Math.min(limit, pool.length));
+}
+
+function canDiscStreamWithoutLibrary(discId) {
+    if (!discId) {
+        return false;
+    }
+    if (isJukeboxDisc(discId)) {
+        return true;
+    }
+    return hasStreamingSource(discId);
+}
+
+function buildJukeboxTrackPayload(track, index) {
+    if (!track || typeof track.title !== 'string' || typeof track.url !== 'string') {
+        return null;
+    }
+    const normalizedUrl = normalizeStreamingUrl(track.url);
+    if (!normalizedUrl) {
+        return null;
+    }
+    const trimmedTitle = track.title.trim();
+    if (!trimmedTitle) {
+        return null;
+    }
+    const order = index + 1;
+    const paddedOrder = String(order).padStart(2, '0');
+    const slug = slugifyForJukebox(trimmedTitle) || `track-${paddedOrder}`;
+    return {
+        discId: trimmedTitle,
+        assetKey: `${JUKEBOX_DISC_ID}_${paddedOrder}_${slug}`,
+        objectUrl: normalizedUrl,
+        isStream: true
+    };
+}
+
+function handleJukeboxSelection({ queueOnly = false } = {}) {
+    const limit = Math.min(Math.max(JUKEBOX_AUTOPLAY_COUNT, 0), JUKEBOX_TRACKS.length);
+    if (!limit) {
+        setAssetsStatus('No tracks available for The Jukebox.', 'error');
+        return true;
+    }
+
+    const randomizedTracks = getRandomizedJukeboxTracks(limit);
+    if (!randomizedTracks.length) {
+        setAssetsStatus('No tracks available for The Jukebox.', 'error');
+        return true;
+    }
+
+    const payloads = [];
+    randomizedTracks.forEach((track, index) => {
+        const payload = buildJukeboxTrackPayload(track, index);
+        if (payload) {
+            payloads.push(payload);
+        }
+    });
+    if (!payloads.length) {
+        setAssetsStatus('No tracks available for The Jukebox.', 'error');
+        return true;
+    }
+
+    payloads.forEach((payload, index) => {
+        const type = queueOnly || index > 0 ? 'queueDisc' : 'playDisc';
+        chrome.runtime.sendMessage({ type, ...payload });
+    });
+
+    if (queueOnly) {
+        setAssetsStatus(`Queued ${payloads.length} tracks from The Jukebox.`, 'success', { autoClear: true, clearDelay: 4000 });
+    } else {
+        setAssetsStatus(DEFAULT_ASSETS_STATUS);
+    }
+    return true;
+}
+
+function updateDiscAvailabilityIndicators() {
+    if (!discElements.length) {
+        return;
+    }
+    discElements.forEach(disc => {
+        const discId = disc.getAttribute('data-disc-id');
+        const shouldDisable = !isDiscLibraryReady && !canDiscStreamWithoutLibrary(discId);
+        disc.classList.toggle('disabled', shouldDisable);
+        if (shouldDisable) {
+            disc.setAttribute('aria-disabled', 'true');
+        } else {
+            disc.removeAttribute('aria-disabled');
+        }
+    });
+}
+
+function updateSelectAssetsButtonVisibility() {
+    if (!selectAssetsBtn) {
+        return;
+    }
+    const hasReadyLocalAudio = isDiscLibraryReady && discHashIndex.size > 0;
+    if (hasReadyLocalAudio) {
+        selectAssetsBtn.setAttribute('hidden', '');
+    } else {
+        selectAssetsBtn.removeAttribute('hidden');
+    }
+    resizePopupToContent();
+}
+
+function setDiscMenuVisibility(expanded, { persist = true } = {}) {
+    if (!discMenuToggle || !discMenuPanel) {
+        return;
+    }
+    if (expanded) {
+        discMenuPanel.removeAttribute('hidden');
+        discMenuPanel.classList.add('expanded');
+    } else {
+        discMenuPanel.setAttribute('hidden', '');
+        discMenuPanel.classList.remove('expanded');
+    }
+    discMenuToggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+    if (expanded) {
+        discMenuPanel.scrollTop = 0;
+    }
+    if (persist && chrome?.storage?.local?.set) {
+        try {
+            const maybePromise = chrome.storage.local.set({ discMenuExpanded: Boolean(expanded) });
+            if (maybePromise && typeof maybePromise.catch === 'function') {
+                maybePromise.catch(() => {});
+            }
+        } catch (error) {
+            /* ignore persistence issues */
+        }
+    }
+
+    resizePopupToContent();
+}
+
 function getAssetsFolderHint() {
     switch (PLATFORM_KEY) {
         case 'windows':
@@ -252,13 +625,7 @@ function collectObjectFiles(files = []) {
 }
 
 function buildDefaultAssetsStatus() {
-    const hint = getAssetsFolderHint();
-    const tip = getHiddenFolderTip();
-    const base = withHint('Upload your Minecraft assets to start listening.', hint);
-    if (tip) {
-        return `${base} ${tip}`;
-    }
-    return base;
+    return '';
 }
 
 const DEFAULT_ASSETS_STATUS = buildDefaultAssetsStatus();
@@ -302,8 +669,19 @@ function setAssetsStatus(message = DEFAULT_ASSETS_STATUS, variant = null, { auto
         return;
     }
 
-    assetsStatusLabel.textContent = message;
+    const nextMessage = message == null ? '' : String(message);
+    const trimmedMessage = nextMessage.trim();
+
+    assetsStatusLabel.textContent = trimmedMessage;
     assetsStatusLabel.classList.remove(...STATUS_VARIANTS);
+
+    if (assetsStatusRow) {
+        if (trimmedMessage.length === 0) {
+            assetsStatusRow.classList.add('hidden');
+        } else {
+            assetsStatusRow.classList.remove('hidden');
+        }
+    }
 
     if (variant && STATUS_VARIANTS.includes(variant)) {
         assetsStatusLabel.classList.add(variant);
@@ -318,8 +696,7 @@ function setAssetsStatus(message = DEFAULT_ASSETS_STATUS, variant = null, { auto
         assetsStatusClearTimer = setTimeout(() => {
             assetsStatusClearTimer = null;
             if (isDiscLibraryReady) {
-                assetsStatusLabel.textContent = READY_ASSETS_STATUS;
-                assetsStatusLabel.classList.remove(...STATUS_VARIANTS);
+                setAssetsStatus(READY_ASSETS_STATUS);
             } else {
                 setAssetsStatus(DEFAULT_ASSETS_STATUS);
             }
@@ -861,7 +1238,32 @@ async function buildRuntimeDiscLibrary({
     };
 }
 
-function resolveDiscEntry(discId) {
+function getStreamingSources(discId) {
+    const desiredKey = toAssetKey(discId);
+    if (!desiredKey) {
+        return [];
+    }
+
+    const candidates = STREAMING_SOURCE_MAP.get(desiredKey);
+    if (!Array.isArray(candidates)) {
+        return [];
+    }
+
+    const normalized = [];
+    for (const candidate of candidates) {
+        const normalizedUrl = normalizeStreamingUrl(candidate);
+        if (normalizedUrl && !normalized.includes(normalizedUrl)) {
+            normalized.push(normalizedUrl);
+        }
+    }
+    return normalized;
+}
+
+function hasStreamingSource(discId) {
+    return getStreamingSources(discId).length > 0;
+}
+
+function resolveDiscEntry(discId, { allowStreaming = true } = {}) {
     const desiredKey = toAssetKey(discId);
     if (!desiredKey) {
         return null;
@@ -885,7 +1287,22 @@ function resolveDiscEntry(discId) {
         }
     }
 
-    return null;
+    if (!allowStreaming || !isStreamingEnabled()) {
+        return null;
+    }
+
+    const streamingSources = getStreamingSources(desiredKey);
+    if (!streamingSources.length) {
+        return null;
+    }
+
+    const [primary, ...fallbacks] = streamingSources;
+    return {
+        assetKey: desiredKey,
+        objectUrl: primary,
+        streamFallbacks: fallbacks,
+        isStream: true
+    };
 }
 
 if (assetsStatusLabel) {
@@ -893,12 +1310,16 @@ if (assetsStatusLabel) {
 }
 
 exposeDiscObjectUrls();
+updateDiscAvailabilityIndicators();
+updateSelectAssetsButtonVisibility();
 
 function markDiscLibraryReady(ready) {
     isDiscLibraryReady = Boolean(ready);
     if (typeof window !== 'undefined') {
         window.isDiscLibraryReady = isDiscLibraryReady;
     }
+    updateDiscAvailabilityIndicators();
+    updateSelectAssetsButtonVisibility();
     if (isDiscLibraryReady && (!assetsStatusLabel || assetsStatusLabel.textContent === DEFAULT_ASSETS_STATUS)) {
         setAssetsStatus(READY_ASSETS_STATUS);
     }
@@ -1133,16 +1554,27 @@ function skipPrevious() {
 
 function queueDisc(discId, { allowRetry = true } = {}) {
     if (!discId) return;
-    if (!isDiscLibraryReady) {
+
+    if (isJukeboxDisc(discId)) {
+        handleJukeboxSelection({ queueOnly: true });
+        return;
+    }
+
+    const canStreamImmediately = isStreamingEnabled() && hasStreamingSource(discId);
+
+    if (!isDiscLibraryReady && !canStreamImmediately) {
         if (allowRetry) {
             enqueueDiscAction({ type: 'queue', discId });
-            showDiscLibraryNotReadyStatus();
+            setAssetsStatus(withHint('Upload your Minecraft assets to add this disc.', getAssetsFolderHint()), 'warning');
         }
         return;
     }
-    const entry = resolveDiscEntry(discId);
-    if (!entry || (!entry.objectUrl && discHashIndex.size === 0)) {
-        if (discHashIndex.size === 0) {
+
+    const entry = resolveDiscEntry(discId, { allowStreaming: canStreamImmediately });
+    if (!entry) {
+        if (canStreamImmediately) {
+            setAssetsStatus('Streaming isn’t available for this track. Upload your Minecraft assets to play it.', 'warning');
+        } else if (discHashIndex.size === 0) {
             setAssetsStatus(withHint('Choose your Minecraft assets folder before adding discs.', getAssetsFolderHint()), 'warning');
         } else {
             setAssetsStatus(`No local audio found for "${discId}".`, 'error');
@@ -1150,12 +1582,22 @@ function queueDisc(discId, { allowRetry = true } = {}) {
         return;
     }
 
-    chrome.runtime.sendMessage({
+    const payload = {
         type: 'queueDisc',
         discId,
-        assetKey: entry.assetKey,
-        objectUrl: entry.objectUrl || undefined
-    });
+        assetKey: entry.assetKey
+    };
+    if (entry.objectUrl) {
+        payload.objectUrl = entry.objectUrl;
+    }
+    if (Array.isArray(entry.streamFallbacks) && entry.streamFallbacks.length) {
+        payload.streamFallbacks = entry.streamFallbacks;
+    }
+    if (entry.isStream) {
+        payload.isStream = true;
+    }
+
+    chrome.runtime.sendMessage(payload);
 }
 
 function removeFromQueue(index) {
@@ -1171,11 +1613,18 @@ function handleDiscSelection(discId, { queueOnly = false, allowRetry = true } = 
     console.log(`[MinecraftJukebox] isDiscLibraryReady: ${isDiscLibraryReady}`);
     console.log(`[MinecraftJukebox] discHashIndex.size: ${discHashIndex.size}`);
     console.log(`[MinecraftJukebox] discObjectUrlRegistry.size: ${discObjectUrlRegistry.size}`);
+
+    if (isJukeboxDisc(discId)) {
+        handleJukeboxSelection({ queueOnly });
+        return;
+    }
     
-    if (!isDiscLibraryReady) {
+    const canStreamImmediately = isStreamingEnabled() && hasStreamingSource(discId);
+
+    if (!isDiscLibraryReady && !canStreamImmediately) {
         if (allowRetry) {
             enqueueDiscAction({ type: queueOnly ? 'queue' : 'play', discId, queueOnly });
-            showDiscLibraryNotReadyStatus();
+            setAssetsStatus(withHint('Upload your Minecraft assets to play this disc.', getAssetsFolderHint()), 'warning');
         }
         return;
     }
@@ -1184,11 +1633,13 @@ function handleDiscSelection(discId, { queueOnly = false, allowRetry = true } = 
         return;
     }
 
-    const entry = resolveDiscEntry(discId);
+    const entry = resolveDiscEntry(discId, { allowStreaming: canStreamImmediately });
     console.log(`[MinecraftJukebox] Resolved entry for ${discId}:`, entry);
     
-    if (!entry || (!entry.objectUrl && discHashIndex.size === 0)) {
-        if (discHashIndex.size === 0) {
+    if (!entry) {
+        if (canStreamImmediately) {
+            setAssetsStatus('Streaming isn’t available for this track. Upload your Minecraft assets to play it.', 'warning');
+        } else if (discHashIndex.size === 0) {
             setAssetsStatus(withHint('Choose your Minecraft assets folder to play discs.', getAssetsFolderHint()), 'warning');
         } else {
             setAssetsStatus(`No local audio found for "${discId}".`, 'error');
@@ -1197,12 +1648,22 @@ function handleDiscSelection(discId, { queueOnly = false, allowRetry = true } = 
     }
 
     console.log(`[MinecraftJukebox] Sending playDisc message for ${discId}`);
-    chrome.runtime.sendMessage({
+    const payload = {
         type: 'playDisc',
         discId,
-        assetKey: entry.assetKey,
-        objectUrl: entry.objectUrl || undefined
-    });
+        assetKey: entry.assetKey
+    };
+    if (entry.objectUrl) {
+        payload.objectUrl = entry.objectUrl;
+    }
+    if (Array.isArray(entry.streamFallbacks) && entry.streamFallbacks.length) {
+        payload.streamFallbacks = entry.streamFallbacks;
+    }
+    if (entry.isStream) {
+        payload.isStream = true;
+    }
+
+    chrome.runtime.sendMessage(payload);
 }
 
 function renderQueue() {
@@ -1302,9 +1763,16 @@ queueList.addEventListener('click', event => {
     }
 });
 
-document.querySelectorAll('.disc').forEach(disc => {
+discElements.forEach(disc => {
     disc.addEventListener('click', event => {
         const discId = disc.getAttribute('data-disc-id');
+        if (!discId) {
+            return;
+        }
+        if (disc.classList.contains('disabled')) {
+            setAssetsStatus(withHint('Upload your Minecraft assets to play this disc.', getAssetsFolderHint()), 'warning', { autoClear: true, clearDelay: 4000 });
+            return;
+        }
         const queueOnly = event.shiftKey || event.altKey || event.metaKey;
         handleDiscSelection(discId, { queueOnly });
     });
@@ -1312,9 +1780,35 @@ document.querySelectorAll('.disc').forEach(disc => {
     disc.addEventListener('contextmenu', event => {
         event.preventDefault();
         const discId = disc.getAttribute('data-disc-id');
+        if (!discId) {
+            return;
+        }
+        if (disc.classList.contains('disabled')) {
+            setAssetsStatus(withHint('Upload your Minecraft assets to play this disc.', getAssetsFolderHint()), 'warning', { autoClear: true, clearDelay: 4000 });
+            return;
+        }
         queueDisc(discId);
     });
 });
+
+if (discMenuToggle && discMenuPanel) {
+    setDiscMenuVisibility(false, { persist: false });
+    if (chrome?.storage?.local?.get) {
+        try {
+            chrome.storage.local.get(['discMenuExpanded'], data => {
+                if (data && typeof data.discMenuExpanded !== 'undefined') {
+                    setDiscMenuVisibility(Boolean(data.discMenuExpanded), { persist: false });
+                }
+            });
+        } catch (error) {
+            /* ignore retrieval issues */
+        }
+    }
+    discMenuToggle.addEventListener('click', () => {
+        const isExpanded = discMenuToggle.getAttribute('aria-expanded') === 'true';
+        setDiscMenuVisibility(!isExpanded);
+    });
+}
 
 async function handleAssetsSelection() {
     if (isLoadingAssets) {
@@ -1369,7 +1863,7 @@ async function handleAssetsSelection() {
             setAssetsStatus(message, 'warning');
             console.warn('Some discs could not be loaded from the selected assets:', failures);
         } else {
-            setAssetsStatus('Discs Loaded', 'success', { autoClear: true });
+            setAssetsStatus('Your discs are ready.', 'success', { autoClear: true, clearDelay: 4000 });
         }
 
         resizePopupToContent();
@@ -1489,7 +1983,7 @@ async function handleRestrictedAssetsSelection() {
         setAssetsStatus(message, 'warning');
         console.warn('Some discs could not be loaded from the selected assets index:', failures);
     } else {
-        setAssetsStatus('Discs Loaded', 'success', { autoClear: true });
+        setAssetsStatus('Your discs are ready.', 'success', { autoClear: true, clearDelay: 4000 });
     }
 
     resizePopupToContent();
@@ -1678,7 +2172,7 @@ async function hydrateDiscLibraryFromBackground(assets = {}) {
                         setAssetsStatus(message, 'warning');
                         console.warn('Some discs could not be hydrated from cached assets:', failures);
                     } else {
-                        setAssetsStatus('Discs Loaded', 'success', { autoClear: true, clearDelay: 5000 });
+                        setAssetsStatus(DEFAULT_ASSETS_STATUS);
                     }
 
                     resizePopupToContent();
@@ -1756,7 +2250,7 @@ async function hydrateDiscLibraryFromBackground(assets = {}) {
                     console.warn('Missing cached blob entries for discs:', missingKeys);
                 }
             } else {
-                setAssetsStatus('Discs Loaded', 'success', { autoClear: true, clearDelay: 5000 });
+                setAssetsStatus(DEFAULT_ASSETS_STATUS);
                 markDiscLibraryReady(true);
             }
 

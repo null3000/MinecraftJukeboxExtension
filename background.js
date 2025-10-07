@@ -39,9 +39,12 @@ const DISC_ID_ALIASES = new Map([
     ['lava chicken', 'lava_chicken'],
     ['Lava Chicken', 'lava_chicken'],
     ['lava_chicken', 'lava_chicken'],
-    ['Default 1hr', 'default_1hr'],
-    ['default 1hr', 'default_1hr'],
-    ['default_1hr', 'default_1hr'],
+    ['The Jukebox', 'the_jukebox'],
+    ['the jukebox', 'the_jukebox'],
+    ['the_jukebox', 'the_jukebox'],
+    ['Default 1hr', 'the_jukebox'],
+    ['default 1hr', 'the_jukebox'],
+    ['default_1hr', 'the_jukebox'],
     ['music_disc.13', '13'],
     ['music_disc.11', '11'],
     ['music_disc.5', '5'],
@@ -66,6 +69,10 @@ const minecraftAssetState = {
 };
 
 const blobAssetLibrary = new Map();
+
+function isRemoteSource(url) {
+    return typeof url === 'string' && /^https?:\/\//i.test(url);
+}
 
 const MESSAGE_TYPES_EXPECTING_RESPONSE = new Set([
     'minecraftAssetsUploadedIndex',
@@ -423,7 +430,7 @@ function sanitizeTrack(track) {
     }
 
     const providedAssetKey = typeof track.assetKey === 'string' && track.assetKey ? track.assetKey : null;
-    const objectUrl = typeof track.objectUrl === 'string' ? track.objectUrl : null;
+    const objectUrl = typeof track.objectUrl === 'string' && track.objectUrl ? track.objectUrl.trim() : null;
 
     let assetKey = providedAssetKey || toAssetKey(discId);
     if (!assetKey && objectUrl) {
@@ -434,11 +441,42 @@ function sanitizeTrack(track) {
         return null;
     }
 
-    return {
+    const rawFallbacks = Array.isArray(track.streamFallbacks) ? track.streamFallbacks : [];
+    const streamFallbacks = [];
+    for (const candidate of rawFallbacks) {
+        if (typeof candidate !== 'string') {
+            continue;
+        }
+        const trimmed = candidate.trim();
+        if (!trimmed || trimmed === objectUrl) {
+            continue;
+        }
+        if (!isRemoteSource(trimmed)) {
+            continue;
+        }
+        if (!streamFallbacks.includes(trimmed)) {
+            streamFallbacks.push(trimmed);
+        }
+    }
+
+    const isStream = Boolean(track.isStream) || isRemoteSource(objectUrl);
+
+    const sanitized = {
         discId,
-        assetKey,
-        objectUrl
+        assetKey
     };
+
+    if (objectUrl) {
+        sanitized.objectUrl = objectUrl;
+    }
+    if (streamFallbacks.length) {
+        sanitized.streamFallbacks = streamFallbacks;
+    }
+    if (isStream) {
+        sanitized.isStream = true;
+    }
+
+    return sanitized;
 }
 
 function sanitizeTrackList(list) {
@@ -456,6 +494,12 @@ function createPersistedTrack(track) {
     const persisted = { discId: sanitized.discId, assetKey: sanitized.assetKey };
     if (sanitized.objectUrl) {
         persisted.objectUrl = sanitized.objectUrl;
+    }
+    if (Array.isArray(sanitized.streamFallbacks) && sanitized.streamFallbacks.length) {
+        persisted.streamFallbacks = sanitized.streamFallbacks.slice();
+    }
+    if (sanitized.isStream) {
+        persisted.isStream = true;
     }
     return persisted;
 }
@@ -623,9 +667,50 @@ async function playTrack(track, { pushCurrentToHistory = true } = {}) {
     }
 
     const { discId, assetKey } = sanitized;
+    const primarySource = typeof sanitized.objectUrl === 'string' ? sanitized.objectUrl : null;
+    const fallbackQueue = Array.isArray(sanitized.streamFallbacks) ? sanitized.streamFallbacks.slice() : [];
+    const shouldStream = Boolean(sanitized.isStream) || isRemoteSource(primarySource);
+
+    let streamSource = null;
+    if (shouldStream) {
+        if (isRemoteSource(primarySource)) {
+            streamSource = primarySource;
+        } else if (fallbackQueue.length) {
+            streamSource = fallbackQueue.shift();
+        }
+    }
+
+    if (streamSource) {
+        if (pushCurrentToHistory && playbackState.currentTrack) {
+            playbackState.history.push(playbackState.currentTrack);
+        }
+
+        const currentTrackRecord = {
+            discId,
+            assetKey,
+            objectUrl: streamSource,
+            isStream: true
+        };
+        if (fallbackQueue.length) {
+            currentTrackRecord.streamFallbacks = fallbackQueue;
+        }
+
+        playbackState.currentTrack = currentTrackRecord;
+        playbackState.progress = {
+            currentTime: 0,
+            duration: 0,
+            isPlaying: false
+        };
+
+        console.log(`[MinecraftJukebox] Streaming ${discId} from ${streamSource}`);
+        await playSound({ source: streamSource, volume: volumeLevel, discId });
+        hasActiveAudioSession = true;
+        await persistState();
+        broadcastState();
+        return true;
+    }
 
     let sourceBlob = null;
-
     const blobEntry = blobAssetLibrary.get(assetKey);
     if (blobEntry && blobEntry.blob instanceof Blob) {
         sourceBlob = blobEntry.blob;
@@ -634,11 +719,16 @@ async function playTrack(track, { pushCurrentToHistory = true } = {}) {
         console.log(`[MinecraftJukebox] No cached blob found for ${discId}, will try file handle`);
     }
 
+    let fallbackSource = null;
+
     if (!sourceBlob) {
         const file = await getDiscFile(assetKey).catch(() => null);
         if (file) {
             sourceBlob = file;
             console.log(`[MinecraftJukebox] Using file handle for ${discId}, size: ${file.size} bytes`);
+        } else if (primarySource && !isRemoteSource(primarySource)) {
+            fallbackSource = primarySource;
+            console.log(`[MinecraftJukebox] Using provided source URL for ${discId}`);
         } else {
             console.error(`[MinecraftJukebox] No audio source found for ${discId}`);
             notifyAssetsIssue(`Unable to load audio for ${discId}.`, { level: 'error', discId });
@@ -651,6 +741,16 @@ async function playTrack(track, { pushCurrentToHistory = true } = {}) {
     }
 
     const currentTrackRecord = { discId, assetKey };
+    if (primarySource) {
+        currentTrackRecord.objectUrl = primarySource;
+    }
+    if (sanitized.isStream) {
+        currentTrackRecord.isStream = true;
+    }
+    if (Array.isArray(sanitized.streamFallbacks) && sanitized.streamFallbacks.length) {
+        currentTrackRecord.streamFallbacks = sanitized.streamFallbacks.slice();
+    }
+
     playbackState.currentTrack = currentTrackRecord;
     playbackState.progress = {
         currentTime: 0,
@@ -658,8 +758,13 @@ async function playTrack(track, { pushCurrentToHistory = true } = {}) {
         isPlaying: false
     };
 
-    console.log(`[MinecraftJukebox] Playing ${discId} with blob size: ${sourceBlob.size} bytes`);
-    await playSound({ blob: sourceBlob, volume: volumeLevel, discId });
+    if (sourceBlob) {
+        console.log(`[MinecraftJukebox] Playing ${discId} with blob size: ${sourceBlob.size} bytes`);
+    } else if (fallbackSource) {
+        console.log(`[MinecraftJukebox] Playing ${discId} from provided source URL`);
+    }
+
+    await playSound({ blob: sourceBlob || undefined, source: fallbackSource || undefined, volume: volumeLevel, discId });
     hasActiveAudioSession = true;
     await persistState();
     broadcastState();
@@ -737,6 +842,8 @@ async function handlePlayDisc(message) {
 
     const providedUrl = typeof message.objectUrl === 'string' ? message.objectUrl : null;
     const resolvedKey = resolveAssetKey(message.assetKey ?? discId) || (providedUrl ? toAssetKey(discId) : null);
+    const streamFallbacks = Array.isArray(message.streamFallbacks) ? message.streamFallbacks : [];
+    const isStream = Boolean(message.isStream);
     
     console.log(`[MinecraftJukebox] providedUrl: ${providedUrl}`);
     console.log(`[MinecraftJukebox] resolvedKey: ${resolvedKey}`);
@@ -753,7 +860,13 @@ async function handlePlayDisc(message) {
         return;
     }
 
-    const track = sanitizeTrack({ discId, assetKey: resolvedKey, objectUrl: providedUrl });
+    const track = sanitizeTrack({
+        discId,
+        assetKey: resolvedKey,
+        objectUrl: providedUrl,
+        streamFallbacks,
+        isStream
+    });
     console.log(`[MinecraftJukebox] Sanitized track:`, track);
     
     if (!track) {
@@ -772,6 +885,8 @@ async function handleQueueDisc(message) {
 
     const providedUrl = typeof message.objectUrl === 'string' ? message.objectUrl : null;
     const resolvedKey = resolveAssetKey(message.assetKey ?? discId) || (providedUrl ? toAssetKey(discId) : null);
+    const streamFallbacks = Array.isArray(message.streamFallbacks) ? message.streamFallbacks : [];
+    const isStream = Boolean(message.isStream);
 
     if (!hasDiscLibrary() && !providedUrl) {
         notifyAssetsIssue('Select your Minecraft assets folder before adding to the queue.', { level: 'warning', discId });
@@ -783,7 +898,13 @@ async function handleQueueDisc(message) {
         return;
     }
 
-    const track = sanitizeTrack({ discId, assetKey: resolvedKey, objectUrl: providedUrl });
+    const track = sanitizeTrack({
+        discId,
+        assetKey: resolvedKey,
+        objectUrl: providedUrl,
+        streamFallbacks,
+        isStream
+    });
     if (!track) {
         notifyAssetsIssue(`Unable to queue ${discId}.`, { level: 'error', discId });
         return;
@@ -870,7 +991,32 @@ function handleProgressUpdate(message) {
 function handlePlaybackStopped(message) {
     const reason = message.reason || 'stopped';
 
-    if (reason === 'ended' || reason === 'error') {
+    if (reason === 'error') {
+        const current = playbackState.currentTrack;
+        if (current && isRemoteSource(current.objectUrl)) {
+            const remaining = Array.isArray(current.streamFallbacks) ? current.streamFallbacks.slice() : [];
+            if (remaining.length) {
+                const nextSource = remaining.shift();
+                playbackState.currentTrack = {
+                    discId: current.discId,
+                    assetKey: current.assetKey,
+                    objectUrl: nextSource,
+                    isStream: true
+                };
+                if (remaining.length) {
+                    playbackState.currentTrack.streamFallbacks = remaining;
+                }
+                console.warn('[MinecraftJukebox] Retrying stream for', current.discId, 'with fallback source');
+                playTrack(playbackState.currentTrack, { pushCurrentToHistory: false }).catch(() => {});
+                return;
+            }
+            notifyAssetsIssue('Streaming is unavailable right now.', { level: 'warning', discId: current.discId });
+        }
+        advanceQueue({ shouldStopCurrent: false }).catch(() => {});
+        return;
+    }
+
+    if (reason === 'ended') {
         advanceQueue({ shouldStopCurrent: false }).catch(() => {});
         return;
     }
