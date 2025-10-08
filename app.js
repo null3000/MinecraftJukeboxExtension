@@ -898,22 +898,46 @@ async function getHashedFile(objectsHandle, hash) {
 }
 
 async function buildDiscLibrary(rootHandle) {
-    let indexesHandle;
-    let objectsHandle;
-
-    try {
-        indexesHandle = await rootHandle.getDirectoryHandle('indexes');
-    } catch (error) {
-        throw new Error('Selected folder is missing the required /indexes directory.');
+    if (!rootHandle) {
+        throw new Error('No folder was selected.');
     }
 
-    try {
-        objectsHandle = await rootHandle.getDirectoryHandle('objects');
-    } catch (error) {
-        throw new Error('Selected folder is missing the required /objects directory.');
+    let assetsRootHandle = rootHandle;
+    let indexesHandle = null;
+    let objectsHandle = null;
+
+    async function tryResolve(handle) {
+        try {
+            const indexes = await handle.getDirectoryHandle('indexes');
+            const objects = await handle.getDirectoryHandle('objects');
+            return { indexes, objects };
+        } catch (error) {
+            return null;
+        }
     }
 
-    const hasRootPermission = await ensureReadPermission(rootHandle);
+    let resolved = await tryResolve(assetsRootHandle);
+
+    if (!resolved) {
+        try {
+            const nestedAssetsHandle = await rootHandle.getDirectoryHandle('assets');
+            resolved = await tryResolve(nestedAssetsHandle);
+            if (resolved) {
+                assetsRootHandle = nestedAssetsHandle;
+            }
+        } catch (error) {
+            /* ignore – handled below */
+        }
+    }
+
+    if (!resolved) {
+        throw new Error('Selected folder does not contain the Minecraft assets directories.');
+    }
+
+    indexesHandle = resolved.indexes;
+    objectsHandle = resolved.objects;
+
+    const hasRootPermission = await ensureReadPermission(assetsRootHandle);
     const hasIndexPermission = await ensureReadPermission(indexesHandle);
     const hasObjectsPermission = await ensureReadPermission(objectsHandle);
 
@@ -960,6 +984,7 @@ async function buildDiscLibrary(rootHandle) {
 
     return {
         discs,
+        rootHandle: assetsRootHandle,
         indexesHandle,
         objectsHandle,
         latestIndexName: latestIndex.handle?.name ?? 'latest'
@@ -1815,12 +1840,35 @@ if (discMenuToggle && discMenuPanel) {
     });
 }
 
+async function loadMinecraftAssetsFromHandle(rootHandle) {
+    const library = await buildDiscLibrary(rootHandle);
+
+    const { loadedCount, failures } = await buildRuntimeDiscLibrary({
+        rootHandle: library.rootHandle,
+        objectsHandle: library.objectsHandle,
+        discs: library.discs,
+        latestIndexName: library.latestIndexName
+    });
+
+    if (failures.length > 0) {
+        const message = loadedCount > 0
+            ? 'Loaded discs, but some tracks are missing.'
+            : 'Couldn’t load those discs. Please try again.';
+        setAssetsStatus(message, 'warning');
+        console.warn('Some discs could not be loaded from the selected assets:', failures);
+    } else {
+        setAssetsStatus('Your discs are ready.', 'success', { autoClear: true, clearDelay: 4000 });
+    }
+
+    resizePopupToContent();
+}
+
 async function handleAssetsSelection() {
     if (isLoadingAssets) {
         return;
     }
 
-    if (PLATFORM_KEY === 'mac') {
+    if (PLATFORM_KEY === 'mac' || PLATFORM_KEY === 'windows') {
         await handleFileUploadAssetsSelection({ reason: 'platformLimited' });
         return;
     }
@@ -1840,7 +1888,6 @@ async function handleAssetsSelection() {
     markDiscLibraryReady(false);
 
     let directoryHandle = null;
-    let library = null;
 
     try {
         const waitingTip = getHiddenFolderTip();
@@ -1852,28 +1899,10 @@ async function handleAssetsSelection() {
             return;
         }
 
-        library = await buildDiscLibrary(directoryHandle);
-
-        const { loadedCount, failures } = await buildRuntimeDiscLibrary({
-            rootHandle: directoryHandle,
-            objectsHandle: library.objectsHandle,
-            discs: library.discs,
-            latestIndexName: library.latestIndexName
-        });
-
-        if (failures.length > 0) {
-            const message = loadedCount > 0
-                ? 'Loaded discs, but some tracks are missing.'
-                : 'Couldn’t load those discs. Please try again.';
-            setAssetsStatus(message, 'warning');
-            console.warn('Some discs could not be loaded from the selected assets:', failures);
-        } else {
-            setAssetsStatus('Your discs are ready.', 'success', { autoClear: true, clearDelay: 4000 });
-        }
-
-        resizePopupToContent();
+        await loadMinecraftAssetsFromHandle(directoryHandle);
     } catch (error) {
         let handledByFallback = false;
+        let userCancelledFallback = false;
         if (error?.name === 'AbortError') {
             setAssetsStatus('No folder was picked. Try again when you’re ready.', 'warning');
         } else if (isSystemFolderError(error)) {
@@ -1884,14 +1913,15 @@ async function handleAssetsSelection() {
             } catch (fallbackError) {
                 if (fallbackError?.name === 'AbortError') {
                     setAssetsStatus('No folder was picked. Try again when you’re ready.', 'warning');
+                    userCancelledFallback = true;
                 } else {
                     console.error('Failed to load Minecraft assets (restricted fallback)', fallbackError);
                     setAssetsStatus(fallbackError?.message || 'Failed to load Minecraft assets.', 'error');
                 }
-                if (!handledByFallback) {
-                    const uploadSucceeded = await handleFileUploadAssetsSelection({ reason: 'systemRestricted' });
-                    handledByFallback = uploadSucceeded;
-                }
+            }
+            if (!handledByFallback && !userCancelledFallback) {
+                const uploadSucceeded = await handleFileUploadAssetsSelection({ reason: 'systemRestricted' });
+                handledByFallback = uploadSucceeded;
             }
         } else {
             console.error('Failed to load Minecraft assets', error);
