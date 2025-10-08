@@ -3,79 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>Getting Local Discs Working</title>
-  <style>
-    :root {
-      color-scheme: dark;
-    }
-    body {
-      font-family: 'Segoe UI', Tahoma, sans-serif;
-      background: #0d0d0d;
-      color: #f5f5f5;
-      margin: 0;
-      padding: 40px 5vw 80px;
-      font-size: 18px;
-      line-height: 1.7;
-    }
-    main {
-      max-width: 900px;
-      margin: 0 auto;
-    }
-    section {
-      background: #1a1a1a;
-      border-radius: 14px;
-      padding: 32px;
-      margin-bottom: 32px;
-      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
-    }
-    h1 {
-      font-size: 36px;
-      margin: 0 0 0.4em;
-    }
-    h2 {
-      font-size: 26px;
-      margin: 1.2em 0 0.5em;
-    }
-    h3 {
-      font-size: 21px;
-      margin: 1em 0 0.4em;
-    }
-    p {
-      margin: 0 0 1em;
-    }
-    ul {
-      padding-left: 1.4em;
-      margin: 0.4em 0 1.2em;
-    }
-    li {
-      margin-bottom: 0.6em;
-    }
-    code {
-      background: rgba(255, 255, 255, 0.08);
-      padding: 0 6px;
-      border-radius: 6px;
-      font-size: 0.9em;
-    }
-    .note {
-      background: rgba(255, 255, 255, 0.08);
-      border-left: 4px solid #5ec2ff;
-      padding: 12px 16px;
-      border-radius: 10px;
-      margin: 1em 0;
-      font-size: 0.95em;
-    }
-    strong {
-      color: #ffd166;
-    }
-    @media (max-width: 700px) {
-      body {
-        padding: 24px 16px;
-        font-size: 17px;
-      }
-      main {
-        max-width: 100%;
-      }
-    }
-  </style>
+  <link rel="stylesheet" href="disc-help.css">
 </head>
 <body>
   <main>
@@ -98,21 +26,20 @@
     <section>
       <h2>If Minecraft is installed on this computer</h2>
 
-        <h3>Windows</h3>
+      <h3>Windows</h3>
       <ul>
-        <li>Press <strong>Windows ✱ + R</strong>, type <code>%AppData%\.minecraft</code>, and hit Enter.</li>
-        <li>Select the <strong>assets</strong> folder (don’t open subfolders — just highlight the folder itself).</li>
-        <li>Back in the popup, click <strong>Use Local Minecraft Audio</strong> and pick that folder.</li>
-        <li>If you can’t see it, enable <strong>View → Hidden items</strong> in File Explorer.</li>
+        <li>Open the popup and click <strong>Use Local Minecraft Audio</strong>. A folder picker appears.</li>
+        <li>Inside that picker press <strong>Ctrl + L</strong>, paste <code>%AppData%\\.minecraft</code>, and hit Enter.</li>
+        <li>Highlight the <strong>assets</strong> folder (don’t drill inside) and click <strong>Select Folder</strong>.</li>
+        <li>If it’s missing, enable <strong>View → Hidden items</strong> in File Explorer, then try again.</li>
       </ul>
 
       <h3>macOS</h3>
       <ul>
-        <li>Open Finder and press <strong>Command ⌘ + Shift + G</strong>.</li>
-        <li>Paste <code>~/Library/Application Support/minecraft</code> and hit Enter.</li>
-        <li>Find the folder named <strong>assets</strong> (don’t open it).</li>
-        <li>Go back to the popup → click <strong>Use Local Minecraft Audio</strong> → choose that <strong>assets</strong> folder.</li>
-        <li>If you don’t see it, press <strong>Command ⌘ + Shift + .</strong> to show hidden folders.</li>
+        <li>Open the popup and click <strong>Use Local Minecraft Audio</strong>. When the picker opens, press <strong>Command ⌘ + Shift + G</strong>.</li>
+        <li>Paste <code>~/Library/Application Support/minecraft</code> and press Enter.</li>
+        <li>Select the <strong>assets</strong> folder (keep it closed) and click <strong>Open</strong>.</li>
+        <li>If you can’t see it, press <strong>Command ⌘ + Shift + .</strong> once to reveal hidden folders.</li>
       </ul>
 
       <p>
@@ -122,12 +49,18 @@
     </section>
 
     <section>
-      <h2>If you don't have minecraft installed on your computer</h2>
+      <h2>If you <strong>don't</strong> have Minecraft installed on your computer</h2>
       <p>
         No problem. The big <strong>Jukebox</strong> button still works — it’ll play a randomized mix of newer Minecraft tracks right away.
       </p>
       <p>
-        The extension still has a lot of the other discs available. You can listen to any of them even without Minecraft installed. The new "Jukebox" feature will let you enjoy a randomized mix of over 40 new tracks.
+        The extension still has a lot of the other discs available. You can listen to many of them even without Minecraft installed. The new "Jukebox" feature will let you enjoy a <strong>newly added</strong> randomized mix of over 40 tracks from the game.
+      </p>
+    </section>
+
+    <section>
+      <p>
+        If you have any issues reach out to me directly @ <a href="mailto:vwbosu@gmail.com">vwbosu@gmail.com</a> or create a support ticket <a href="https://github.com/null3000/MinecraftJukeboxExtension/issues">here</a>.
       </p>
     </section>
   </main>
