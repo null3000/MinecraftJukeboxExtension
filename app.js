@@ -421,6 +421,11 @@ function updateDiscAvailabilityIndicators() {
     });
 }
 
+function openDiscHelpPage() {
+    const helpUrl = chrome.runtime ? chrome.runtime.getURL('disc-help.html') : 'disc-help.html';
+    window.open(helpUrl, '_blank', 'noopener,noreferrer');
+}
+
 function updateSelectAssetsButtonVisibility() {
     if (!selectAssetsBtn) {
         return;
@@ -1770,7 +1775,7 @@ discElements.forEach(disc => {
             return;
         }
         if (disc.classList.contains('disabled')) {
-            setAssetsStatus(withHint('Upload your Minecraft assets to play this disc.', getAssetsFolderHint()), 'warning', { autoClear: true, clearDelay: 4000 });
+            openDiscHelpPage();
             return;
         }
         const queueOnly = event.shiftKey || event.altKey || event.metaKey;
@@ -1784,7 +1789,7 @@ discElements.forEach(disc => {
             return;
         }
         if (disc.classList.contains('disabled')) {
-            setAssetsStatus(withHint('Upload your Minecraft assets to play this disc.', getAssetsFolderHint()), 'warning', { autoClear: true, clearDelay: 4000 });
+            openDiscHelpPage();
             return;
         }
         queueDisc(discId);
@@ -1839,11 +1844,11 @@ async function handleAssetsSelection() {
 
     try {
         const waitingTip = getHiddenFolderTip();
-        const waitingMessage = withHint('Waiting for you to pick your Minecraft assets…', getAssetsFolderHint());
+        const waitingMessage = withHint('Choose your Minecraft assets folder so we can find every record.', getAssetsFolderHint());
         setAssetsStatus(waitingTip ? `${waitingMessage} ${waitingTip}` : waitingMessage, 'warning');
         directoryHandle = await window.showDirectoryPicker({ id: 'minecraft-assets-root', mode: 'read' });
         if (!directoryHandle) {
-            setAssetsStatus('Selection cancelled.', 'warning');
+            setAssetsStatus('No folder was picked. Try again when you’re ready.', 'warning');
             return;
         }
 
@@ -1870,7 +1875,7 @@ async function handleAssetsSelection() {
     } catch (error) {
         let handledByFallback = false;
         if (error?.name === 'AbortError') {
-            setAssetsStatus('Selection cancelled.', 'warning');
+            setAssetsStatus('No folder was picked. Try again when you’re ready.', 'warning');
         } else if (isSystemFolderError(error)) {
             console.warn('Blocked from selecting system-marked folder, attempting fallback flow.');
             try {
@@ -1878,7 +1883,7 @@ async function handleAssetsSelection() {
                 handledByFallback = true;
             } catch (fallbackError) {
                 if (fallbackError?.name === 'AbortError') {
-                    setAssetsStatus('Selection cancelled.', 'warning');
+                    setAssetsStatus('No folder was picked. Try again when you’re ready.', 'warning');
                 } else {
                     console.error('Failed to load Minecraft assets (restricted fallback)', fallbackError);
                     setAssetsStatus(fallbackError?.message || 'Failed to load Minecraft assets.', 'error');
@@ -1913,11 +1918,9 @@ async function handleRestrictedAssetsSelection() {
         throw new Error('Your browser does not support the required file pickers.');
     }
 
-    const platformName = getPlatformDisplayName();
     const objectsHint = getObjectsFolderHint();
     const hiddenTip = getHiddenFolderTip();
-    const blockedMessage = `${platformName} blocked that folder. Select the assets/objects directory instead.`;
-    let combinedMessage = withHint(blockedMessage, objectsHint);
+    let combinedMessage = withHint('Select your Minecraft assets / objects folder so we can load the discs.', objectsHint);
     if (hiddenTip) {
         combinedMessage = `${combinedMessage} ${hiddenTip}`;
     }
@@ -2004,18 +2007,7 @@ async function handleFileUploadAssetsSelection({ reason = null } = {}) {
     const hint = getAssetsFolderHint();
     const tip = getHiddenFolderTip();
 
-    const introMessage = (() => {
-        switch (reason) {
-            case 'platformLimited':
-                return 'macOS blocks that folder. Upload your Minecraft assets instead.';
-            case 'systemRestricted':
-                return 'That folder is restricted. Upload your Minecraft assets instead.';
-            default:
-                return 'Upload your Minecraft assets folder to start listening.';
-        }
-    })();
-
-    let statusMessage = withHint(introMessage, hint);
+    let statusMessage = withHint('Choose your Minecraft assets folder to unlock every classic disc.', hint);
     if (tip) {
         statusMessage = `${statusMessage} ${tip}`;
     }
@@ -2080,7 +2072,7 @@ async function handleFileUploadAssetsSelection({ reason = null } = {}) {
         loadSucceeded = true;
     } catch (error) {
         if (error?.name === 'AbortError') {
-            setAssetsStatus('Selection cancelled.', 'warning');
+            setAssetsStatus('No folder was picked. Try again when you’re ready.', 'warning');
         } else {
             console.error('Failed to upload assets directory', error);
             setAssetsStatus(error?.message || 'Failed to upload assets directory.', 'error');

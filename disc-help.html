@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Getting Local Discs Working</title>
+  <style>
+    :root {
+      color-scheme: dark;
+    }
+    body {
+      font-family: 'Segoe UI', Tahoma, sans-serif;
+      background: #0d0d0d;
+      color: #f5f5f5;
+      margin: 0;
+      padding: 40px 5vw 80px;
+      font-size: 18px;
+      line-height: 1.7;
+    }
+    main {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    section {
+      background: #1a1a1a;
+      border-radius: 14px;
+      padding: 32px;
+      margin-bottom: 32px;
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
+    }
+    h1 {
+      font-size: 36px;
+      margin: 0 0 0.4em;
+    }
+    h2 {
+      font-size: 26px;
+      margin: 1.2em 0 0.5em;
+    }
+    h3 {
+      font-size: 21px;
+      margin: 1em 0 0.4em;
+    }
+    p {
+      margin: 0 0 1em;
+    }
+    ul {
+      padding-left: 1.4em;
+      margin: 0.4em 0 1.2em;
+    }
+    li {
+      margin-bottom: 0.6em;
+    }
+    code {
+      background: rgba(255, 255, 255, 0.08);
+      padding: 0 6px;
+      border-radius: 6px;
+      font-size: 0.9em;
+    }
+    .note {
+      background: rgba(255, 255, 255, 0.08);
+      border-left: 4px solid #5ec2ff;
+      padding: 12px 16px;
+      border-radius: 10px;
+      margin: 1em 0;
+      font-size: 0.95em;
+    }
+    strong {
+      color: #ffd166;
+    }
+    @media (max-width: 700px) {
+      body {
+        padding: 24px 16px;
+        font-size: 17px;
+      }
+      main {
+        max-width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section>
+      <h1>Why are some discs grayed out?</h1>
+      <p>
+        To avoid copyright issues, I can’t legally use some Minecraft discs with this extension. Mojang owns them,
+        and they don’t make those files available online.
+      </p>
+      <p>
+        <strong>The good news:</strong> if you already have Minecraft installed on your computer, those exact tracks are sitting on your own computer.
+        We just need to show Chrome where they are. Look at the instructions below to get everything working.
+      </p>
+      <p class="note">
+        I get it — this extra setup step is annoying. But once you do it, you’ll have every disc working,
+        and you’ll never have to touch it again.
+      </p>
+    </section>
+
+    <section>
+      <h2>If Minecraft is installed on this computer</h2>
+
+        <h3>Windows</h3>
+      <ul>
+        <li>Press <strong>Windows ✱ + R</strong>, type <code>%AppData%\.minecraft</code>, and hit Enter.</li>
+        <li>Select the <strong>assets</strong> folder (don’t open subfolders — just highlight the folder itself).</li>
+        <li>Back in the popup, click <strong>Use Local Minecraft Audio</strong> and pick that folder.</li>
+        <li>If you can’t see it, enable <strong>View → Hidden items</strong> in File Explorer.</li>
+      </ul>
+
+      <h3>macOS</h3>
+      <ul>
+        <li>Open Finder and press <strong>Command ⌘ + Shift + G</strong>.</li>
+        <li>Paste <code>~/Library/Application Support/minecraft</code> and hit Enter.</li>
+        <li>Find the folder named <strong>assets</strong> (don’t open it).</li>
+        <li>Go back to the popup → click <strong>Use Local Minecraft Audio</strong> → choose that <strong>assets</strong> folder.</li>
+        <li>If you don’t see it, press <strong>Command ⌘ + Shift + .</strong> to show hidden folders.</li>
+      </ul>
+
+      <p>
+        Chrome might also ask for access to an <code>objects</code> folder and a JSON file in <code>indexes</code>.
+        That’s normal — it’s just the extension reading your local music files. You’re not uploading anything.
+      </p>
+    </section>
+
+    <section>
+      <h2>If you don't have minecraft installed on your computer</h2>
+      <p>
+        No problem. The big <strong>Jukebox</strong> button still works — it’ll play a randomized mix of newer Minecraft tracks right away.
+      </p>
+      <p>
+        The extension still has a lot of the other discs available. You can listen to any of them even without Minecraft installed. The new "Jukebox" feature will let you enjoy a randomized mix of over 40 new tracks.
+      </p>
+    </section>
+  </main>
+</body>
+</html>

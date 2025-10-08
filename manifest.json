@@ -1,14 +1,11 @@
 {
   "manifest_version": 3,
   "name": "The Jukebox – Minecraft Music Player",
-  "version": "2025.10.7",
+  "version": "2025.10.8.2",
   "description": "Get a Minecraft jukebox in your browser!",
   "permissions": [
       "offscreen",
       "storage"
-  ],
-  "host_permissions": [
-      "https://lupyhlznsiokxpeqftpg.supabase.co/*"
   ],
   "action": {
       "default_popup": "popup.html",
@@ -29,5 +26,15 @@
   },
   "background": {
     "service_worker": "background.js"
-  }
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "disc-help.html"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
+    }
+  ]
 }
