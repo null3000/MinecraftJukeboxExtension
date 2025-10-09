@@ -30,7 +30,9 @@
   "web_accessible_resources": [
     {
       "resources": [
-        "disc-help.html"
+        "disc-help.html",
+        "macOSinstructions.html",
+        "windowsinstructions.html"
       ],
       "matches": [
         "<all_urls>"
