@@ -88,6 +88,12 @@ const BLOB_DB_NAME = 'minecraftJukeboxAssets';
 const BLOB_DB_VERSION = 1;
 const BLOB_STORE_NAME = 'discBlobs';
 
+try {
+    chrome.runtime.setUninstallURL('https://forms.gle/7uGTedirTb5FxJT69');
+} catch (error) {
+    console.warn('[MinecraftJukebox] Failed to set uninstall URL', error);
+}
+
 let blobDbPromise = null;
 
 function getBlobDb() {
@@ -210,6 +216,43 @@ async function storeSingleBlobEntry(key, blob) {
     } catch (error) {
         console.error('[MinecraftJukebox] Failed to persist blob asset for key:', key, error);
         throw error;
+    }
+}
+
+async function clearStoredDiscLibrary() {
+    try {
+        const db = await getBlobDb();
+        const transaction = db.transaction(BLOB_STORE_NAME, 'readwrite');
+        const store = transaction.objectStore(BLOB_STORE_NAME);
+        store.clear();
+        await new Promise(resolve => {
+            transaction.oncomplete = () => resolve();
+            transaction.onerror = () => resolve();
+        });
+    } catch (error) {
+        console.warn('[MinecraftJukebox] Failed to clear blob storage', error);
+    }
+
+    blobAssetLibrary.clear();
+    minecraftAssetState.discIndex.clear();
+    minecraftAssetState.latestIndexName = null;
+    minecraftAssetState.rootDirectory = null;
+    minecraftAssetState.objectsDirectory = null;
+
+    try {
+        await chrome.storage.local.remove(DISC_INDEX_STORAGE_KEY);
+    } catch (error) {
+        console.warn('[MinecraftJukebox] Failed to clear cached disc index', error);
+    }
+
+    broadcastDiscCacheCleared();
+}
+
+function broadcastDiscCacheCleared() {
+    const payload = { type: 'minecraftDiscCacheCleared' };
+    const maybePromise = chrome.runtime.sendMessage(payload);
+    if (maybePromise && typeof maybePromise.catch === 'function') {
+        maybePromise.catch(() => {});
     }
 }
 
@@ -360,7 +403,10 @@ function setDiscLibrary(assets = {}) {
             }
         }).catch(() => {});
     } else {
-        chrome.storage.local.remove(DISC_INDEX_STORAGE_KEY).catch(() => {});
+        clearStoredDiscLibrary().catch(() => {
+            chrome.storage.local.remove(DISC_INDEX_STORAGE_KEY).catch(() => {});
+            broadcastDiscCacheCleared();
+        });
     }
 
     // eslint-disable-next-line require-atomic-updates

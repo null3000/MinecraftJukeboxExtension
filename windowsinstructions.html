@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Windows Setup — Use Local Minecraft Audio</title>
+  <link rel="stylesheet" href="disc-help.css">
+  <style>
+    /* Page-specific helpers to complement disc-help.css */
+    .steps { counter-reset: step; list-style: none; padding-left: 0; }
+    .steps li { position: relative; margin: 0 0 1.1em; padding-left: 2.3em; }
+    .steps li::before {
+      counter-increment: step;
+      content: counter(step);
+      position: absolute; left: 0; top: 0.1em;
+      width: 1.7em; height: 1.7em; line-height: 1.7em;
+      text-align: center; border-radius: 8px;
+      background: #2a2a2a; color: #ffd166; font-weight: 700;
+      box-shadow: 0 2px 8px rgba(0,0,0,.35);
+    }
+    figure { margin: 0.6em 0 1.2em; }
+    .step-img { width: 100%; height: auto; border-radius: 10px; box-shadow: 0 8px 22px rgba(0,0,0,.35); }
+    figcaption { opacity: .85; font-size: 0.95em; margin-top: 0.5em; }
+  </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <meta name="description" content="Set up local Minecraft audio on Windows to unlock every disc in the Minecraft Jukebox extension.">
+  <link rel="icon" href="assets/icon/jukebox.png">
+  <link rel="apple-touch-icon" href="assets/icon/jukebox.png">
+  <meta name="theme-color" content="#0d0d0d">
+  <meta name="robots" content="noindex">
+  <meta name="format-detection" content="telephone=no">
+  <meta http-equiv="x-ua-compatible" content="IE=edge">
+  <meta name="referrer" content="no-referrer">
+</head>
+<body>
+  <main>
+    <section>
+      <h1>Use Local Minecraft Audio on Windows</h1>
+      <p>
+        The Minecraft Jukebox extension can load every classic disc right from the Minecraft files already on your PC.
+        Follow these quick steps once and you’ll unlock the full disc library.
+      </p>
+      <p class="note">
+        Your audio never leaves your device. The extension only reads the local files you point it to.
+      </p>
+    </section>
+
+    <section>
+      <h2>Step-by-step (Windows)</h2>
+      <ol class="steps">
+        <li>
+          Open the extension popup and click <strong>Use Local Minecraft Audio</strong>.
+          <figure>
+            <img class="step-img" src="https://usercontent.us.prod.clueso.io/a6c7ad9d-0381-4474-9f12-4086f43a8b90/08c38f2c-90e2-4446-96f7-237f72893f12/79879be6-5f3d-4c63-9c2b-f511272cb694/images/3a880a00-74b7-4523-ab2d-6fca4c4fa11e.png" alt="Use Local Minecraft Audio button inside the extension popup">
+          </figure>
+        </li>
+        <li>
+          In the folder picker, press <strong>Ctrl + L</strong>, type <code>%AppData%</code>, then press <strong>Enter</strong>.
+          <figure>
+            <img class="step-img" src="https://usercontent.us.prod.clueso.io/a6c7ad9d-0381-4474-9f12-4086f43a8b90/08c38f2c-90e2-4446-96f7-237f72893f12/79879be6-5f3d-4c63-9c2b-f511272cb694/images/1aa90b1f-8c43-449c-b536-ee199bc43f59.png" alt="Typing %AppData% into the Windows file picker address bar">
+          </figure>
+        </li>
+        <li>
+          Open the <strong>.minecraft</strong> folder.
+          <figure>
+            <img class="step-img" src="https://usercontent.us.prod.clueso.io/a6c7ad9d-0381-4474-9f12-4086f43a8b90/08c38f2c-90e2-4446-96f7-237f72893f12/79879be6-5f3d-4c63-9c2b-f511272cb694/images/a1b657ba-c645-4e3a-856e-82f8c26fb6d6.png" alt="Selecting the .minecraft folder">
+          </figure>
+        </li>
+        <li>
+          Click the <strong>assets</strong> folder once (don’t open it), then choose <strong>Upload</strong>.
+          <figure>
+            <img class="step-img" src="https://usercontent.us.prod.clueso.io/a6c7ad9d-0381-4474-9f12-4086f43a8b90/08c38f2c-90e2-4446-96f7-237f72893f12/79879be6-5f3d-4c63-9c2b-f511272cb694/images/c45518a2-7cdd-4beb-8c99-3288c1cc57d2.png" alt="Highlighting the assets folder before selecting">
+          </figure>
+        </li>
+        <li>
+          Wait a moment while the extension imports your discs. Once complete, the grayed-out discs will become playable.
+        </li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>Troubleshooting</h2>
+      <ul>
+        <li>If the folder picker hides AppData, turn on <strong>View → Hidden items</strong> in File Explorer.</li>
+        <li>Windows may prompt for access to the <code>objects</code> folder and a JSON file in <code>indexes</code>. Allow both.</li>
+        <li>If nothing loads, double-check that Minecraft Java Edition is installed on this PC.</li>
+      </ul>
+    </section>
+
+    <section>
+      <p>
+        Need help? Email <a href="mailto:vwbosu@gmail.com">vwbosu@gmail.com</a> or open an issue at
+        <a href="https://github.com/null3000/MinecraftJukeboxExtension/issues">GitHub</a>.
+      </p>
+      <p>Happy listening!</p>
+      <p>
+        Want update notes and new disc alerts? <a href="https://jukeboxmc.app/" target="_blank" rel="noopener">Sign up for the Minecraft Jukebox newsletter</a>.
+      </p>
+    </section>
+  </main>
+</body>
+</html>

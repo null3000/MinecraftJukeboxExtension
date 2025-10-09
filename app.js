@@ -13,6 +13,8 @@ const scaleSelect = document.getElementById('ui-scale-select');
 const volumeSlider = document.getElementById('volume-slider');
 const volumeIcon = document.querySelector('.volume-icon');
 const selectAssetsBtn = document.getElementById('select-assets-btn');
+const assetsInfoBtn = document.querySelector('.info-btn');
+const discPanelActions = document.querySelector('.disc-panel-actions');
 const assetsStatusLabel = document.getElementById('assets-status');
 const assetsStatusRow = document.querySelector('.assets-status-row');
 const assetsDirectoryInput = document.getElementById('assets-directory-input');
@@ -22,10 +24,21 @@ const discMenuPanel = document.getElementById('disc-menu-panel');
 
 let assetsStatusClearTimer = null;
 let isDiscLibraryReady = false;
+let hasPersistedDiscLibrary = false;
+let assetsControlsLocked = true;
+let storageLibraryStatus = 'unknown';
+let backgroundLibraryStatus = 'unknown';
 
 const ASSET_RECORD_PATTERN = /^minecraft\/sounds\/records\/([^/]+)\.ogg$/;
 const STATUS_VARIANTS = ['error', 'success', 'warning'];
 const READY_ASSETS_STATUS = '';
+
+function hasExpectedLocalLibrary() {
+    return hasPersistedDiscLibrary
+        || storageLibraryStatus === 'present'
+        || backgroundLibraryStatus === 'present'
+        || discHashIndex.size > 0;
+}
 
 function detectPlatform() {
     const uaDataPlatform = navigator.userAgentData?.platform;
@@ -409,9 +422,10 @@ function updateDiscAvailabilityIndicators() {
     if (!discElements.length) {
         return;
     }
+    const expectLocalLibrary = hasExpectedLocalLibrary();
     discElements.forEach(disc => {
         const discId = disc.getAttribute('data-disc-id');
-        const shouldDisable = !isDiscLibraryReady && !canDiscStreamWithoutLibrary(discId);
+        const shouldDisable = !isDiscLibraryReady && !expectLocalLibrary && !canDiscStreamWithoutLibrary(discId);
         disc.classList.toggle('disabled', shouldDisable);
         if (shouldDisable) {
             disc.setAttribute('aria-disabled', 'true');
@@ -427,15 +441,60 @@ function openDiscHelpPage() {
 }
 
 function updateSelectAssetsButtonVisibility() {
-    if (!selectAssetsBtn) {
+    if (!selectAssetsBtn && !assetsInfoBtn) {
         return;
     }
-    const hasReadyLocalAudio = isDiscLibraryReady && discHashIndex.size > 0;
-    if (hasReadyLocalAudio) {
-        selectAssetsBtn.setAttribute('hidden', '');
-    } else {
-        selectAssetsBtn.removeAttribute('hidden');
+
+    const hasReadyLocalAudio = (isDiscLibraryReady && discHashIndex.size > 0) || hasPersistedDiscLibrary;
+    const shouldHide = assetsControlsLocked || hasReadyLocalAudio;
+
+    if (selectAssetsBtn) {
+        selectAssetsBtn.hidden = shouldHide;
     }
+
+    if (assetsInfoBtn) {
+        assetsInfoBtn.hidden = shouldHide;
+    }
+
+    if (discPanelActions) {
+        const hasVisibleButton = (selectAssetsBtn && !selectAssetsBtn.hidden) ||
+            (assetsInfoBtn && !assetsInfoBtn.hidden);
+        discPanelActions.classList.toggle('no-assets-buttons', !hasVisibleButton);
+    }
+
+    resizePopupToContent();
+}
+
+function refreshAssetsControlsLock() {
+    const hasReadyLocalAudio = isDiscLibraryReady && discHashIndex.size > 0;
+    const backgroundHasLibrary = backgroundLibraryStatus === 'present';
+
+    if (hasReadyLocalAudio || backgroundHasLibrary) {
+        hasPersistedDiscLibrary = true;
+        assetsControlsLocked = false;
+        updateSelectAssetsButtonVisibility();
+        updateDiscAvailabilityIndicators();
+        return;
+    }
+
+    hasPersistedDiscLibrary = false;
+
+    const storageResolved = storageLibraryStatus !== 'unknown';
+    const backgroundResolved = backgroundLibraryStatus !== 'unknown';
+
+    if (storageResolved && backgroundResolved) {
+        assetsControlsLocked = false;
+    } else {
+        assetsControlsLocked = true;
+    }
+
+    updateSelectAssetsButtonVisibility();
+    updateDiscAvailabilityIndicators();
+}
+
+function showDiscLibraryMissingWarning() {
+    const hint = getAssetsFolderHint();
+    setAssetsStatus(withHint('Local Minecraft discs not found. Choose your Minecraft assets folder again.', hint), 'warning');
     resizePopupToContent();
 }
 
@@ -774,6 +833,9 @@ function resetDiscLibraryState() {
     releaseDiscObjectUrls();
     discHashIndex = new Map();
     minecraftAssetsHandles = null;
+    hasPersistedDiscLibrary = false;
+    storageLibraryStatus = 'absent';
+    backgroundLibraryStatus = 'absent';
     markDiscLibraryReady(false);
     setAssetsStatus(DEFAULT_ASSETS_STATUS);
 }
@@ -1336,20 +1398,25 @@ function resolveDiscEntry(discId, { allowStreaming = true } = {}) {
 }
 
 if (assetsStatusLabel) {
-    setAssetsStatus(assetsStatusLabel.textContent?.trim() || DEFAULT_ASSETS_STATUS);
+    setAssetsStatus(DEFAULT_ASSETS_STATUS);
 }
 
 exposeDiscObjectUrls();
 updateDiscAvailabilityIndicators();
-updateSelectAssetsButtonVisibility();
+refreshAssetsControlsLock();
 
 function markDiscLibraryReady(ready) {
     isDiscLibraryReady = Boolean(ready);
     if (typeof window !== 'undefined') {
         window.isDiscLibraryReady = isDiscLibraryReady;
     }
+    if (isDiscLibraryReady) {
+        hasPersistedDiscLibrary = true;
+    } else if (discHashIndex.size === 0) {
+        hasPersistedDiscLibrary = false;
+    }
     updateDiscAvailabilityIndicators();
-    updateSelectAssetsButtonVisibility();
+    refreshAssetsControlsLock();
     if (isDiscLibraryReady && (!assetsStatusLabel || assetsStatusLabel.textContent === DEFAULT_ASSETS_STATUS)) {
         setAssetsStatus(READY_ASSETS_STATUS);
     }
@@ -1591,18 +1658,27 @@ function queueDisc(discId, { allowRetry = true } = {}) {
     }
 
     const canStreamImmediately = isStreamingEnabled() && hasStreamingSource(discId);
+    const expectLocalLibrary = hasExpectedLocalLibrary();
 
     if (!isDiscLibraryReady && !canStreamImmediately) {
         if (allowRetry) {
             enqueueDiscAction({ type: 'queue', discId });
-            setAssetsStatus(withHint('Upload your Minecraft assets to add this disc.', getAssetsFolderHint()), 'warning');
+            if (!expectLocalLibrary) {
+                setAssetsStatus(withHint('Upload your Minecraft assets to add this disc.', getAssetsFolderHint()), 'warning');
+            }
+        } else if (expectLocalLibrary) {
+            enqueueDiscAction({ type: 'queue', discId });
         }
         return;
     }
 
     const entry = resolveDiscEntry(discId, { allowStreaming: canStreamImmediately });
     if (!entry) {
-        if (canStreamImmediately) {
+        if (!isDiscLibraryReady && expectLocalLibrary) {
+            if (allowRetry) {
+                enqueueDiscAction({ type: 'queue', discId });
+            }
+        } else if (canStreamImmediately) {
             setAssetsStatus('Streaming isn’t available for this track. Upload your Minecraft assets to play it.', 'warning');
         } else if (discHashIndex.size === 0) {
             setAssetsStatus(withHint('Choose your Minecraft assets folder before adding discs.', getAssetsFolderHint()), 'warning');
@@ -1650,11 +1726,14 @@ function handleDiscSelection(discId, { queueOnly = false, allowRetry = true } = 
     }
     
     const canStreamImmediately = isStreamingEnabled() && hasStreamingSource(discId);
+    const expectLocalLibrary = hasExpectedLocalLibrary();
 
     if (!isDiscLibraryReady && !canStreamImmediately) {
         if (allowRetry) {
             enqueueDiscAction({ type: queueOnly ? 'queue' : 'play', discId, queueOnly });
-            setAssetsStatus(withHint('Upload your Minecraft assets to play this disc.', getAssetsFolderHint()), 'warning');
+            if (!expectLocalLibrary) {
+                setAssetsStatus(withHint('Upload your Minecraft assets to play this disc.', getAssetsFolderHint()), 'warning');
+            }
         }
         return;
     }
@@ -1667,7 +1746,11 @@ function handleDiscSelection(discId, { queueOnly = false, allowRetry = true } = 
     console.log(`[MinecraftJukebox] Resolved entry for ${discId}:`, entry);
     
     if (!entry) {
-        if (canStreamImmediately) {
+        if (!isDiscLibraryReady && expectLocalLibrary) {
+            if (allowRetry) {
+                enqueueDiscAction({ type: queueOnly ? 'queue' : 'play', discId, queueOnly });
+            }
+        } else if (canStreamImmediately) {
             setAssetsStatus('Streaming isn’t available for this track. Upload your Minecraft assets to play it.', 'warning');
         } else if (discHashIndex.size === 0) {
             setAssetsStatus(withHint('Choose your Minecraft assets folder to play discs.', getAssetsFolderHint()), 'warning');
@@ -2187,12 +2270,17 @@ async function hydrateDiscLibraryFromBackground(assets = {}) {
                         latestIndexName: latestIndexName || 'cached'
                     });
 
-                    if (failures.length) {
+                    const relevantFailures = failures.filter(item => {
+                        const assetKey = item?.disc?.assetKey;
+                        return assetKey ? !hasStreamingSource(assetKey) : true;
+                    });
+
+                    if (relevantFailures.length) {
                         const message = loadedCount > 0
                             ? 'Loaded discs, but some tracks are missing.'
                             : 'Couldn’t load those discs. Please try again.';
                         setAssetsStatus(message, 'warning');
-                        console.warn('Some discs could not be hydrated from cached assets:', failures);
+                        console.warn('Some discs could not be hydrated from cached assets:', relevantFailures);
                     } else {
                         setAssetsStatus(DEFAULT_ASSETS_STATUS);
                     }
@@ -2242,9 +2330,10 @@ async function hydrateDiscLibraryFromBackground(assets = {}) {
         }
 
         if (!objectFileMap.size) {
-            if (missingKeys.length) {
+            const relevantMissing = missingKeys.filter(assetKey => !hasStreamingSource(assetKey));
+            if (relevantMissing.length) {
                 setAssetsStatus('Couldn’t restore some saved discs.', 'warning');
-                console.warn('Missing cached blob entries for discs:', missingKeys, sourceLabel);
+                console.warn('Missing cached blob entries for discs:', relevantMissing, sourceLabel);
             } else {
                 setAssetsStatus(DEFAULT_ASSETS_STATUS);
             }
@@ -2259,17 +2348,22 @@ async function hydrateDiscLibraryFromBackground(assets = {}) {
                 latestIndexName: latestIndexName || 'cached'
             }, { persistToBackground: false });
 
-            const totalFailures = failures.length + missingKeys.length;
+            const relevantFailures = failures.filter(item => {
+                const assetKey = item?.disc?.assetKey;
+                return assetKey ? !hasStreamingSource(assetKey) : true;
+            });
+            const relevantMissing = missingKeys.filter(assetKey => !hasStreamingSource(assetKey));
+            const totalFailures = relevantFailures.length + relevantMissing.length;
             if (totalFailures > 0) {
                 const message = loadedCount > 0
                     ? 'Loaded discs, but some tracks are missing.'
                     : 'Couldn’t load those discs. Please try again.';
                 setAssetsStatus(message, 'warning');
-                if (failures.length) {
-                    console.warn('Some discs could not be recreated from cached blobs:', failures);
+                if (relevantFailures.length) {
+                    console.warn('Some discs could not be recreated from cached blobs:', relevantFailures);
                 }
-                if (missingKeys.length) {
-                    console.warn('Missing cached blob entries for discs:', missingKeys);
+                if (relevantMissing.length) {
+                    console.warn('Missing cached blob entries for discs:', relevantMissing);
                 }
             } else {
                 setAssetsStatus(DEFAULT_ASSETS_STATUS);
@@ -2298,13 +2392,43 @@ function requestAssetsFromBackground() {
     }
 
     chrome.runtime.sendMessage({ type: 'requestMinecraftAssets' }, response => {
+        const hadPersistedLibrary = hasPersistedDiscLibrary
+            || storageLibraryStatus === 'present'
+            || backgroundLibraryStatus === 'present';
+
         if (chrome.runtime.lastError) {
+            backgroundLibraryStatus = 'absent';
+            refreshAssetsControlsLock();
             return;
         }
+
         if (response && response.assets) {
-            hydrateDiscLibraryFromBackground(response.assets).catch(() => {
+            const assets = response.assets;
+            if (Array.isArray(assets.discIndex) && assets.discIndex.length > 0) {
+                hasPersistedDiscLibrary = true;
+                backgroundLibraryStatus = 'present';
+            } else if (assets.hasBlobLibrary) {
+                backgroundLibraryStatus = 'present';
+            } else {
+                backgroundLibraryStatus = 'absent';
+                resetDiscLibraryState();
+                if (hadPersistedLibrary) {
+                    showDiscLibraryMissingWarning();
+                }
+            }
+
+            refreshAssetsControlsLock();
+
+            hydrateDiscLibraryFromBackground(assets).catch(() => {
                 /* hydration failure already logged */
             });
+        } else {
+            backgroundLibraryStatus = 'absent';
+            resetDiscLibraryState();
+            if (hadPersistedLibrary) {
+                showDiscLibraryMissingWarning();
+            }
+            refreshAssetsControlsLock();
         }
     });
 }
@@ -2342,6 +2466,22 @@ function requestDiscBlob(key) {
             }
         });
     });
+}
+
+if (chrome?.storage?.local?.get) {
+    chrome.storage.local.get(['minecraftDiscIndex'], data => {
+        const storedIndex = data?.minecraftDiscIndex;
+        if (storedIndex && Array.isArray(storedIndex.discIndex) && storedIndex.discIndex.length > 0) {
+            hasPersistedDiscLibrary = true;
+            storageLibraryStatus = 'present';
+        } else {
+            storageLibraryStatus = 'absent';
+        }
+        refreshAssetsControlsLock();
+    });
+} else {
+    storageLibraryStatus = 'absent';
+    refreshAssetsControlsLock();
 }
 
 playPauseBtn.addEventListener('click', () => {
@@ -2404,6 +2544,17 @@ chrome.runtime.onMessage.addListener(message => {
     if (message.type === 'stateUpdate') {
         applyState(message.state);
         resizePopupToContent();
+    }
+
+    if (message.type === 'minecraftDiscCacheCleared') {
+        const hadPersistedLibrary = hasPersistedDiscLibrary
+            || storageLibraryStatus === 'present'
+            || backgroundLibraryStatus === 'present';
+        resetDiscLibraryState();
+        if (hadPersistedLibrary) {
+            showDiscLibraryMissingWarning();
+        }
+        return;
     }
 
     if (message.type === 'playbackStopped') {

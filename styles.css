@@ -258,8 +258,6 @@ body.scale-large {
     background-color: rgba(0, 0, 0, 0.25);
     margin-top: calc(10px * var(--scale-factor));
     padding: calc(10px * var(--scale-factor));
-    max-height: calc(240px * var(--scale-factor));
-    overflow-y: auto;
 }
 
 .disc-panel-actions {
@@ -278,6 +276,16 @@ body.scale-large {
 
 .disc-panel-actions .assets-btn {
     flex-shrink: 0;
+}
+
+.disc-panel-actions .info-btn {
+    flex-shrink: 0;
+    background-color: #2f2f2f;
+}
+
+.disc-panel-actions.no-assets-buttons .queue-tip {
+    margin-left: 0;
+    text-align: left;
 }
 
 .disc-menu-panel[hidden] {
@@ -327,6 +335,14 @@ body.scale-large {
 
 .review-btn:hover {
     background-color: #3b7bfa;
+}
+
+.newsletter-btn {
+    background-color: #7c4dff;
+}
+
+.newsletter-btn:hover {
+    background-color: #8f63ff;
 }
 
 .vinyl-btn {
@@ -465,6 +481,14 @@ body.scale-large {
     background-color: #444;
     color: #fff;
     cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+}
+
+.control-btn[hidden] {
+    display: none !important;
 }
 
 .control-btn:disabled {
