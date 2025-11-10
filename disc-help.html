@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Getting Local Discs Working</title>
+  <link rel="stylesheet" href="disc-help.css">
+</head>
+<body>
+  <main>
+    <section>
+      <h1>Why are some discs grayed out?</h1>
+      <p>
+        To avoid copyright issues, I can’t legally use some Minecraft discs with this extension. Mojang owns them,
+        and they don’t make those files available online.
+      </p>
+      <p>
+        <strong>The good news:</strong> if you already have Minecraft installed on your computer, those exact tracks are sitting on your own computer.
+        We just need to show Chrome where they are. Look at the instructions below to get everything working.
+      </p>
+      <p class="note">
+        I get it — this extra setup step is annoying. But once you do it, you’ll have every disc working,
+        and you’ll never have to touch it again.
+      </p>
+    </section>
+
+    <section>
+      <h2>If Minecraft <strong>(Java Edition)</strong> is installed on your computer</h2>
+
+      <h3>Windows</h3>
+      <ul>
+        <li>Open the popup and click <strong>Use Local Minecraft Audio</strong>. A folder picker appears.</li>
+        <li>Inside that picker press <strong>Ctrl + L</strong>, type <code>%AppData%</code>, and hit Enter.</li>
+        <li>Open the <strong>.minecraft</strong> folder.</li>
+        <li>Highlight the <strong>assets</strong> folder (don’t drill inside) and click <strong>Select Folder</strong>.</li>
+        <li>Need more help? Follow the <a href="windowsinstructions.html">Windows step-by-step guide</a> or watch a quick <a href="https://youtu.be/Z_MUoUILgR8" target="_blank" rel="noreferrer noopener">setup video</a>.</li>
+        <li>If it’s missing, enable <strong>View → Hidden items</strong> in File Explorer, then try again.</li>
+      </ul>
+
+      <h3>macOS</h3>
+      <ul>
+        <li>Open the popup and click <strong>Use Local Minecraft Audio</strong>. When the picker opens, press <strong>Command ⌘ + Shift + G</strong>.</li>
+        <li>Paste <code>~/Library/Application Support/minecraft</code> and press Enter.</li>
+        <li>Select the <strong>assets</strong> folder (keep it closed) and click <strong>Open</strong>.</li>
+        <li>If you can’t see it, press <strong>Command ⌘ + Shift + .</strong> once to reveal hidden folders.</li>
+        <li>Need more help? Follow the <a href="macOSinstructions.html">macOS step-by-step guide</a> or watch a quick <a href="https://youtu.be/n8s0yRmZCGc" target="_blank" rel="noreferrer noopener">setup video</a>.</li>
+      </ul>
+
+      <p>
+        Chrome might also ask for access to an <code>objects</code> folder and a JSON file in <code>indexes</code>.
+        That’s normal — it’s just the extension reading your local music files.
+      </p>
+    </section>
+
+    <section>
+      <h2>If you <strong>don't</strong> have Minecraft installed on your computer</h2>
+      <p>
+        No problem. The big <strong>Jukebox</strong> button still works — it’ll play a randomized mix of newer Minecraft tracks right away.
+      </p>
+      <p>
+        The extension still has a lot of the other discs available. You can listen to many of them even without Minecraft installed. The new "Jukebox" feature will let you enjoy a <strong>newly added</strong> randomized mix of over 40 tracks from the game.
+      </p>
+    </section>
+
+    <section>
+      <p>
+        If you have any issues/suggestions reach out to me directly at <a href="mailto:vwbosu@gmail.com">vwbosu@gmail.com</a> or create a support ticket <a href="https://github.com/null3000/MinecraftJukeboxExtension/issues">here</a>.
+      </p>
+      <p>Happy listening!</p>
+      <p>
+        Want new tracks and update notes in your inbox? <a href="https://jukeboxmc.app/" target="_blank" rel="noopener">Sign up for the Minecraft Jukebox newsletter</a>.
+      </p>
+    </section>
+  </main>
+</body>
+</html>
